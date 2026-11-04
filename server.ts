@@ -40,12 +40,12 @@ app.get('/api/health', (_req, res) => {
 
 /**
  * Helper to generate content with exponential backoff with jitter and model fallback.
- * - Primary model: gemini-3.8-flash
- * - Fallback model: gemini-3.1-flash-lite
+ * - Primary model: gemini-flash-latest
+ * - Fallback models: gemini-3.8-flash, gemini-3.1-flash-lite
  * - Wait times: 1s, 2s, 4s, 8s + 0-500ms random jitter (4 attempts per model).
  */
 async function generateWithRetryAndFallback(contents: any, systemInstruction: string) {
-  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
   const baseDelays = [1000, 2000, 4000, 8000];
   let lastError: any = null;
 
@@ -111,7 +111,7 @@ app.post('/api/chat', async (req, res) => {
 
     if (!apiKey) {
       return res.status(503).json({
-        error: 'PathFinder is experiencing high traffic right now. Please try again in a few moments.',
+        error: 'Gemini API key is not configured. Please check Settings > Secrets.',
         isApiKeyMissing: true,
       });
     }
@@ -125,7 +125,7 @@ app.post('/api/chat', async (req, res) => {
       if (studentContext.streamOrGroup) parts.push(`Stream/Group: ${studentContext.streamOrGroup}`);
       if (studentContext.specialization) parts.push(`Specialization: ${studentContext.specialization}`);
       if (studentContext.boardOrUniversity) parts.push(`Board/University: ${studentContext.boardOrUniversity}`);
-      if (studentContext.targetCareer) parts.push(`Target Career: ${studentContext.targetCareer}`);
+      if (studentContext.careerGoals) parts.push(`Career Goals: ${studentContext.careerGoals}`);
       if (studentContext.assessmentSummary) parts.push(`Recent Academic Assessment: ${studentContext.assessmentSummary}`);
 
       if (parts.length > 0) {
@@ -209,11 +209,26 @@ CORE DIRECTIVES:
     return res.json({ reply });
   } catch (err: any) {
     console.error('Server /api/chat error after retries & fallback:', err);
-    // User-friendly error message as requested
-    const userFriendlyMessage = 'PathFinder is experiencing high traffic right now. Please try again in a few moments.';
-    return res.status(503).json({
-      error: userFriendlyMessage,
-      isRateLimit: true,
+    const errMessage = err?.message || 'An error occurred while generating response';
+    const status = err?.status || 500;
+    const isOverload =
+      status === 503 ||
+      status === 429 ||
+      errMessage.includes('503') ||
+      errMessage.includes('429') ||
+      errMessage.includes('overloaded') ||
+      errMessage.includes('high demand') ||
+      errMessage.includes('RESOURCE_EXHAUSTED');
+
+    if (isOverload) {
+      return res.status(503).json({
+        error: 'PathFinder is experiencing high traffic right now. Please try again in a few moments.',
+        isRateLimit: true,
+      });
+    }
+
+    return res.status(500).json({
+      error: errMessage,
     });
   }
 });
