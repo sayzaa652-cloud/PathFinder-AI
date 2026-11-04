@@ -472,12 +472,12 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             streamOrGroup: profile.streamOrGroup,
             specialization: profile.specialization,
             boardOrUniversity: profile.boardOrUniversity,
-            targetCareer: profile.targetCareer,
+            careerGoals: profile.careerGoals,
             assessmentSummary:
               assessmentResults.length > 0
                 ? assessmentResults
                     .slice(0, 3)
-                    .map(r => `${r.assessmentTitle}: ${r.scorePercentage}%`)
+                    .map(r => `${r.assessmentTitle}: ${r.percentage}%`)
                     .join(', ')
                 : undefined
           }
@@ -534,14 +534,14 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
       );
     } catch (err: any) {
       console.error('Chat error:', err);
-      const errorMsg = err?.message || 'Something went wrong. Please check your network and try again.';
-      setErrorBanner(errorMsg);
+      const friendlyMsg = 'PathFinder is experiencing high traffic right now. Please try again in a few moments.';
+      setErrorBanner(friendlyMsg);
 
-      // Add a friendly error response in the chat
+      // Add a friendly error response in the chat with a Retry action
       const fallbackAssistantMessage: ChatMessage = {
         id: 'msg-err-' + Date.now(),
         role: 'assistant',
-        content: `⚠️ **Unable to complete request:** ${errorMsg}\n\n*Please try asking your question again or click Regenerate below.*`,
+        content: `⚠️ **${friendlyMsg}**\n\n*Click the Regenerate button below or re-send your message to try again.*`,
         timestamp: Date.now()
       };
 
@@ -601,7 +601,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             streamOrGroup: profile.streamOrGroup,
             specialization: profile.specialization,
             boardOrUniversity: profile.boardOrUniversity,
-            targetCareer: profile.targetCareer
+            careerGoals: profile.careerGoals
           }
         : undefined;
 
@@ -783,12 +783,21 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
               <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
               <span>{errorBanner}</span>
             </div>
-            <button
-              onClick={() => setErrorBanner(null)}
-              className="p-1 text-amber-700 hover:text-amber-900"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRegenerate}
+                className="px-2.5 py-1 rounded-md bg-amber-700 hover:bg-amber-800 text-white font-bold text-[11px] shadow-xs cursor-pointer flex items-center gap-1"
+              >
+                <RotateCw className="w-3 h-3" />
+                <span>Retry</span>
+              </button>
+              <button
+                onClick={() => setErrorBanner(null)}
+                className="p-1 text-amber-700 hover:text-amber-900 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         )}
 

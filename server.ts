@@ -38,6 +38,68 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+/**
+ * Helper to generate content with exponential backoff with jitter and model fallback.
+ * - Primary model: gemini-3.8-flash
+ * - Fallback model: gemini-3.1-flash-lite
+ * - Wait times: 1s, 2s, 4s, 8s + 0-500ms random jitter (4 attempts per model).
+ */
+async function generateWithRetryAndFallback(contents: any, systemInstruction: string) {
+  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite'];
+  const baseDelays = [1000, 2000, 4000, 8000];
+  let lastError: any = null;
+
+  for (const model of models) {
+    let attempt = 0;
+    const maxAttempts = 4;
+
+    while (attempt < maxAttempts) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction,
+          },
+        });
+        if (response && response.text) {
+          return response;
+        }
+        throw new Error('Empty response received from model.');
+      } catch (err: any) {
+        lastError = err;
+        const errMessage = err?.message || String(err);
+        const status = err?.status || (errMessage.includes('503') ? 503 : errMessage.includes('429') ? 429 : 500);
+        const isOverload =
+          status === 503 ||
+          status === 429 ||
+          errMessage.includes('503') ||
+          errMessage.includes('429') ||
+          errMessage.includes('high demand') ||
+          errMessage.includes('overloaded') ||
+          errMessage.includes('RESOURCE_EXHAUSTED');
+
+        // If not a retryable overload error or max attempts reached for this model, try next model or throw
+        if (!isOverload || attempt >= maxAttempts - 1) {
+          console.warn(`Model ${model} failed on attempt ${attempt + 1}: ${errMessage}`);
+          break;
+        }
+
+        // Exponential backoff with random jitter (0 to 500ms)
+        const baseDelay = baseDelays[attempt] || 8000;
+        const jitter = Math.random() * 500;
+        const delayMs = baseDelay + jitter;
+
+        console.warn(`Model ${model} overloaded (attempt ${attempt + 1}/${maxAttempts}). Waiting ${Math.round(delayMs)}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        attempt++;
+      }
+    }
+  }
+
+  throw lastError || new Error('All models and retry attempts exhausted.');
+}
+
 // Conversational AI Chat Endpoint
 app.post('/api/chat', async (req, res) => {
   try {
@@ -49,7 +111,7 @@ app.post('/api/chat', async (req, res) => {
 
     if (!apiKey) {
       return res.status(503).json({
-        error: 'Gemini API key is not configured in the environment. Please check your settings.',
+        error: 'PathFinder is experiencing high traffic right now. Please try again in a few moments.',
         isApiKeyMissing: true,
       });
     }
@@ -142,34 +204,16 @@ CORE DIRECTIVES:
       };
     });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents,
-      config: {
-        systemInstruction,
-      },
-    });
-
+    const response = await generateWithRetryAndFallback(contents, systemInstruction);
     const reply = response.text || '';
     return res.json({ reply });
   } catch (err: any) {
-    console.error('Server /api/chat error:', err);
-    const errorMessage = err?.message || 'An error occurred while generating response';
-    const isRateLimit =
-      err?.status === 429 ||
-      errorMessage.includes('429') ||
-      errorMessage.includes('RESOURCE_EXHAUSTED') ||
-      errorMessage.includes('Quota exceeded');
-
-    if (isRateLimit) {
-      return res.status(429).json({
-        error: 'The AI service is experiencing high traffic. Please wait a few moments and try your question again.',
-        isRateLimit: true,
-      });
-    }
-
-    return res.status(500).json({
-      error: errorMessage,
+    console.error('Server /api/chat error after retries & fallback:', err);
+    // User-friendly error message as requested
+    const userFriendlyMessage = 'PathFinder is experiencing high traffic right now. Please try again in a few moments.';
+    return res.status(503).json({
+      error: userFriendlyMessage,
+      isRateLimit: true,
     });
   }
 });
