@@ -92,6 +92,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
   // Webcam modal state
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -229,6 +230,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
   const handleStartCamera = async () => {
     setIsCameraModalOpen(true);
+    setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' }
@@ -238,7 +240,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
-      console.error('Camera access error:', err);
+      console.warn('Camera access error:', err);
       try {
         // Fallback to default user camera
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -247,8 +249,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
           videoRef.current.srcObject = fallbackStream;
         }
       } catch (fallbackErr) {
-        alert('Could not access camera. Please check camera permissions in your browser or use file upload.');
-        setIsCameraModalOpen(false);
+        setCameraError('Camera access was blocked or is unavailable in this browser environment. You can upload an image file instead.');
       }
     }
   };
@@ -1198,15 +1199,35 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             </div>
 
             <div className="p-4 space-y-4">
-              <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              {cameraError ? (
+                <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-4">
+                  <AlertCircle className="w-10 h-10 text-amber-600 mx-auto" />
+                  <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                    {cameraError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCameraModalOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-xs font-bold shadow-xs inline-flex items-center gap-2 cursor-pointer mx-auto"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Image Instead</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
@@ -1214,16 +1235,18 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                   onClick={() => setIsCameraModalOpen(false)}
                   className="px-4 py-2 rounded-xl border border-[#D5A3AE] text-xs font-semibold text-[#722F45] hover:bg-[#FAF6F0]"
                 >
-                  Cancel
+                  Close
                 </button>
-                <button
-                  type="button"
-                  onClick={handleCapturePhoto}
-                  className="px-5 py-2 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Capture Photo</span>
-                </button>
+                {!cameraError && (
+                  <button
+                    type="button"
+                    onClick={handleCapturePhoto}
+                    className="px-5 py-2 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Capture Photo</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
