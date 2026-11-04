@@ -3,7 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 dotenv.config();
 
@@ -40,28 +40,39 @@ app.get('/api/health', (_req, res) => {
 
 /**
  * Helper to generate content with exponential backoff with jitter and model fallback.
- * - Primary model: gemini-flash-latest
- * - Fallback models: gemini-3.8-flash, gemini-3.1-flash-lite
- * - Wait times: 1s, 2s, 4s, 8s + 0-500ms random jitter (4 attempts per model).
+ * Speed-optimized:
+ * - Primary model: gemini-3.8-flash (with ThinkingLevel.LOW for fast response time)
+ * - Fallback models: gemini-3.1-flash-lite, gemini-flash-latest
+ * - Low-latency retry delays (500ms, 1000ms, 2000ms + random jitter).
  */
 async function generateWithRetryAndFallback(contents: any, systemInstruction: string) {
-  const models = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.1-flash-lite'];
-  const baseDelays = [1000, 2000, 4000, 8000];
+  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const baseDelays = [500, 1000, 2000, 4000];
   let lastError: any = null;
 
   for (const model of models) {
     let attempt = 0;
-    const maxAttempts = 4;
+    const maxAttempts = 3;
 
     while (attempt < maxAttempts) {
       try {
+        const config: any = {
+          systemInstruction,
+        };
+
+        // Enable LOW thinking level for gemini-3.8-flash to minimize latency while maintaining high accuracy
+        if (model === 'gemini-3.8-flash') {
+          config.thinkingConfig = {
+            thinkingLevel: ThinkingLevel.LOW,
+          };
+        }
+
         const response = await ai.models.generateContent({
           model,
           contents,
-          config: {
-            systemInstruction,
-          },
+          config,
         });
+
         if (response && response.text) {
           return response;
         }
@@ -85,12 +96,12 @@ async function generateWithRetryAndFallback(contents: any, systemInstruction: st
           break;
         }
 
-        // Exponential backoff with random jitter (0 to 500ms)
-        const baseDelay = baseDelays[attempt] || 8000;
-        const jitter = Math.random() * 500;
+        // Low-latency exponential backoff with random jitter (0 to 300ms)
+        const baseDelay = baseDelays[attempt] || 4000;
+        const jitter = Math.random() * 300;
         const delayMs = baseDelay + jitter;
 
-        console.warn(`Model ${model} overloaded (attempt ${attempt + 1}/${maxAttempts}). Waiting ${Math.round(delayMs)}ms before retry...`);
+        console.warn(`Model ${model} busy (attempt ${attempt + 1}/${maxAttempts}). Retrying in ${Math.round(delayMs)}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         attempt++;
       }
@@ -133,69 +144,60 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    const systemInstruction = `You are a helpful, knowledgeable, and responsive AI assistant inside the PathFinder platform.
-You operate conversationally like ChatGPT. You can answer any questions on academic subjects (Mathematics, Physics, Chemistry, Biology, Commerce, Economics, Law, Engineering, Medicine, Arts), coding, reasoning, exams, problem-solving, or general curiosity.
+    const systemInstruction = `You are a helpful, knowledgeable, and fast AI assistant inside the PathFinder platform.
+You operate conversationally like ChatGPT for academic subjects (Mathematics, Physics, Chemistry, Biology, Commerce, Economics, Law, Engineering, Medicine, Arts), coding, reasoning, exams, problem-solving, and career guidance.
 
 CORE DIRECTIVES:
 
-1. LANGUAGE & MULTILINGUAL ADAPTATION (HIGHEST PRIORITY):
+1. CONCISE & SPEED-OPTIMIZED BY DEFAULT:
+- Be direct, clear, and concise by default.
+- For simple greetings ("Hi", "Hello"), quick questions, or basic definitions, respond naturally in 1-3 direct sentences. Do not add redundant preambles.
+- When a student explicitly requests a detailed step-by-step explanation, derivation, coding walkthrough, or asks "explain in detail" / "show steps", provide complete, beautifully formatted step-by-step explanations with Markdown, code blocks, or formulas.
+
+2. LANGUAGE & MULTILINGUAL ADAPTATION (HIGHEST PRIORITY):
 - You MUST automatically detect the language used by the student in their latest message and respond in the EXACT SAME language.
-- Full native support for ALL Indian languages: Hindi (हिंदी), Telugu (తెలుగు), Tamil (தமிழ்), Bengali (বাংলা), Marathi (मराठी), Gujarati (ગુજરાતી), Kannada (ಕನ್ನಡ), Malayalam (മലയാളം), Punjabi (ਪੰਜਾਬੀ), Odia (ଓଡ଼ିଆ), Urdu (اردو), as well as English.
-- If the student writes in Hinglish (Hindi written using the English alphabet), reply in friendly, conversational Hinglish or clear Hindi as appropriate.
-- If the student switches languages at ANY point during the chat (for example, asks the first question in English, then asks a follow-up in Hindi or Telugu), you MUST immediately switch and reply in that new language.
-- Never force English on the student. Do not give rigid or canned answers.
+- Full native support for ALL Indian languages: Hindi (हिंदी), Telugu (తెలుగు), Tamil (தமிழ்), Bengali (বাংলা), Marathi (मराठी), Gujarati (ગુજરાતી), Kannada (ಕನ್ನಡ), Malayalam (മലയാളം), Punjabi (ਪੰਜਾਬੀ), Odia (ଓਡ଼ਿଆ), Urdu (اردو), Hinglish, and English.
+- If the student switches languages at ANY point during the chat, immediately switch and reply in that new language.
 
-2. CLEAR, BEAUTIFUL FORMATTING:
-- Structure your responses with clear Markdown: use bolding, bullet points, numbered lists, and headings (###).
-- For Mathematics, Physics, and Numerical Problems:
-  * State the given data clearly.
-  * State the formula or principle being applied.
-  * Show step-by-step algebraic/arithmetic working without skipping steps.
-  * Highlight or box the final answer.
-- For Coding & Technical Questions:
-  * Provide clean, working code snippets inside syntax-highlighted code blocks with the language specified (e.g. \`\`\`python, \`\`\`javascript).
-  * Add concise explanatory comments explaining key logic.
-- For Complex Concepts & Processes:
-  * Break down into bite-sized steps or numbered stages.
-  * Use clear ASCII / text-based flowcharts or diagrams when illustrating structures, circuits, or cycles.
+3. BEAUTIFUL FORMATTING WHEN DETAILED:
+- Use clean Markdown with bold headings, bullet points, and syntax-highlighted code blocks.
+- For math & science problems: state the formula, show clear algebraic steps, and highlight the final answer clearly.
 
-3. CONVERSATIONAL TONE & DEPTH:
-- Be open, supportive, direct, and conversational.
-- Answer whatever the student asks — do not restrict to a predefined syllabus or canned response list.
-- Support follow-up questions naturally, remembering earlier context in the chat.
+4. MULTIMODAL IMAGE & DIAGRAM ANALYSIS:
+- When an image is attached, examine handwritten notes, textbook questions, graphs, or code accurately and provide step-by-step reasoning.${contextDetails}`;
 
-4. IMAGE & DIAGRAM ANALYSIS (MULTIMODAL):
-- When an image is attached, thoroughly examine any handwritten notes, textbook questions, graphs, circuit diagrams, chemical structures, or code, and answer the student's question accurately with step-by-step reasoning.${contextDetails}`;
+    // Format conversation history for Gemini API (take up to 10 recent messages)
+    const recentMessages = messages.slice(-10);
+    const lastIndex = recentMessages.length - 1;
 
-    // Format conversation history for Gemini API
-    // Take the last 15 messages for multi-turn conversational context
-    const recentMessages = messages.slice(-15);
-    const contents = recentMessages.map((msg: any) => {
+    const contents = recentMessages.map((msg: any, idx: number) => {
       const parts: any[] = [];
 
-      // If user uploaded an image with base64 data
+      // Optimize payload size: Only transmit heavy inline image base64 data if it is attached in the recent turns (idx >= lastIndex - 1).
+      // For older history turns, replace with a text summary tag to avoid re-uploading megabytes of base64 data on every turn.
       if (msg.image && msg.image.data && msg.image.mimeType) {
-        // Remove data URL prefix if present
-        const cleanBase64 = msg.image.data.includes(';base64,')
-          ? msg.image.data.split(';base64,')[1]
-          : msg.image.data;
+        if (idx >= lastIndex - 1) {
+          const cleanBase64 = msg.image.data.includes(';base64,')
+            ? msg.image.data.split(';base64,')[1]
+            : msg.image.data;
 
-        parts.push({
-          inlineData: {
-            mimeType: msg.image.mimeType,
-            data: cleanBase64,
-          },
-        });
+          parts.push({
+            inlineData: {
+              mimeType: msg.image.mimeType,
+              data: cleanBase64,
+            },
+          });
+        } else {
+          parts.push({
+            text: `[Attached Image: ${msg.image.fileName || 'image'}]`,
+          });
+        }
       }
 
       if (msg.content && typeof msg.content === 'string') {
-        parts.push({
-          text: msg.content,
-        });
-      } else if (!msg.image) {
-        parts.push({
-          text: '',
-        });
+        parts.push({ text: msg.content });
+      } else if (parts.length === 0) {
+        parts.push({ text: '' });
       }
 
       return {
