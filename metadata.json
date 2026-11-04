@@ -1,0 +1,6 @@
+{
+  "name": "PathFinder AI — Student Growth & AI Readiness Platform",
+  "description": "Comprehensive student growth, stream discovery, curriculum specialization assessment, and AI readiness platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
