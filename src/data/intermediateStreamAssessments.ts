@@ -27,7 +27,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'B',
     explanation: 'Subtract 6 from both sides: 2x = 10. Divide both sides by 2: x = 5.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1A',
     subtopic: 'Linear Equations'
   },
   {
@@ -42,7 +42,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'C',
     explanation: '15% of 200 = (15 / 100) * 200 = 15 * 2 = 30.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1A',
     subtopic: 'Percentages'
   },
   {
@@ -57,7 +57,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'A',
     explanation: 'By Pythagoras theorem: Hypotenuse^2 = 3^2 + 4^2 = 9 + 16 = 25. Square root of 25 is 5 cm.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1B',
     subtopic: 'Geometry'
   },
   {
@@ -72,7 +72,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'B',
     explanation: 'Perimeter of a rectangle = 2 * (length + width) = 2 * (8 + 5) = 2 * 13 = 26 cm.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1B',
     subtopic: 'Mensuration'
   },
   {
@@ -87,7 +87,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'C',
     explanation: 'Speed = Distance / Time = 120 km / 2 hours = 60 km/h.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1B',
     subtopic: 'Speed and Distance'
   },
   {
@@ -102,7 +102,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'B',
     explanation: 'Sum = 10 + 15 + 20 + 25 + 30 = 100. Average = 100 / 5 = 20.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1B',
     subtopic: 'Statistics'
   },
   {
@@ -117,7 +117,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'B',
     explanation: 'Common difference = 7 - 4 = 3.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1A',
     subtopic: 'Sequences'
   },
   {
@@ -132,7 +132,7 @@ export const MATH_QUESTIONS: AssessmentQuestion[] = [
     correctAnswer: 'C',
     explanation: 'A fair coin has 2 possible outcomes (Heads, Tails). Probability of heads is 1 out of 2 = 1/2.',
     difficulty: 'Easy',
-    topic: 'Mathematics',
+    topic: 'Mathematics 1A',
     subtopic: 'Probability'
   },
   {
@@ -1481,102 +1481,6 @@ export const INTERMEDIATE_STREAMS: Record<string, IntermediateStreamConfig> = {
       ...CHEMISTRY_QUESTIONS.slice(0, 4),
       ...APTITUDE_POOL.slice(0, 10)
     ]
-  },
-
-  // 7. BiPC with Computer Science — Biology: 6, Physics: 4, Chemistry: 4, Computer Science: 6, Aptitude: 10 (Total: 30)
-  bipc_cs: {
-    id: 'bipc_cs',
-    code: 'BiPC-CS',
-    title: 'BiPC with Computer Science',
-    description: 'Foundational life sciences and everyday computing assessment testing Biology, Physics, Chemistry, Computer Basics, and Aptitude.',
-    totalQuestions: 30,
-    timeLimitMinutes: 35,
-    subjectsBreakdown: [
-      { subject: 'Biology', count: 6 },
-      { subject: 'Physics', count: 4 },
-      { subject: 'Chemistry', count: 4 },
-      { subject: 'Computer Science', count: 6 },
-      { subject: 'General Aptitude & Reasoning', count: 10 }
-    ],
-    questionSelector: () => [
-      ...BIOLOGY_QUESTIONS.slice(0, 6),
-      ...PHYSICS_QUESTIONS.slice(0, 4),
-      ...CHEMISTRY_QUESTIONS.slice(0, 4),
-      ...COMPUTER_SCIENCE_QUESTIONS.slice(0, 6),
-      ...APTITUDE_POOL.slice(0, 10)
-    ]
-  },
-
-  // 8. MPC with Computer Science — Mathematics: 6, Physics: 4, Chemistry: 4, Computer Science: 6, Aptitude: 10 (Total: 30)
-  mpc_cs: {
-    id: 'mpc_cs',
-    code: 'MPC-CS',
-    title: 'MPC with Computer Science',
-    description: 'Foundational physical science and computer basics assessment testing Mathematics, Physics, Chemistry, Computer Basics, and Aptitude.',
-    totalQuestions: 30,
-    timeLimitMinutes: 35,
-    subjectsBreakdown: [
-      { subject: 'Mathematics', count: 6 },
-      { subject: 'Physics', count: 4 },
-      { subject: 'Chemistry', count: 4 },
-      { subject: 'Computer Science', count: 6 },
-      { subject: 'General Aptitude & Reasoning', count: 10 }
-    ],
-    questionSelector: () => [
-      ...MATH_QUESTIONS.slice(0, 6),
-      ...PHYSICS_QUESTIONS.slice(0, 4),
-      ...CHEMISTRY_QUESTIONS.slice(0, 4),
-      ...COMPUTER_SCIENCE_QUESTIONS.slice(0, 6),
-      ...APTITUDE_POOL.slice(0, 10)
-    ]
-  },
-
-  // 9. MEC with Computer Science — Mathematics: 5, Economics: 5, Commerce: 5, Computer Science: 5, Aptitude: 10 (Total: 30)
-  mec_cs: {
-    id: 'mec_cs',
-    code: 'MEC-CS',
-    title: 'MEC with Computer Science',
-    description: 'Foundational commerce and tech assessment testing Mathematics, Economics, Everyday Commerce, Computer Basics, and Aptitude.',
-    totalQuestions: 30,
-    timeLimitMinutes: 35,
-    subjectsBreakdown: [
-      { subject: 'Mathematics', count: 5 },
-      { subject: 'Economics', count: 5 },
-      { subject: 'Commerce', count: 5 },
-      { subject: 'Computer Science', count: 5 },
-      { subject: 'General Aptitude & Reasoning', count: 10 }
-    ],
-    questionSelector: () => [
-      ...MATH_QUESTIONS.slice(0, 5),
-      ...ECONOMICS_QUESTIONS.slice(0, 5),
-      ...COMMERCE_QUESTIONS.slice(0, 5),
-      ...COMPUTER_SCIENCE_QUESTIONS.slice(0, 5),
-      ...APTITUDE_POOL.slice(0, 10)
-    ]
-  },
-
-  // 10. CEC with Computer Science — Civics: 5, Economics: 5, Commerce: 5, Computer Science: 5, Aptitude: 10 (Total: 30)
-  cec_cs: {
-    id: 'cec_cs',
-    code: 'CEC-CS',
-    title: 'CEC with Computer Science',
-    description: 'Foundational social sciences, commerce, and digital literacy assessment testing Civics, Economics, Everyday Commerce, Computer Basics, and Aptitude.',
-    totalQuestions: 30,
-    timeLimitMinutes: 35,
-    subjectsBreakdown: [
-      { subject: 'Civics', count: 5 },
-      { subject: 'Economics', count: 5 },
-      { subject: 'Commerce', count: 5 },
-      { subject: 'Computer Science', count: 5 },
-      { subject: 'General Aptitude & Reasoning', count: 10 }
-    ],
-    questionSelector: () => [
-      ...CIVICS_QUESTIONS.slice(0, 5),
-      ...ECONOMICS_QUESTIONS.slice(0, 5),
-      ...COMMERCE_QUESTIONS.slice(0, 5),
-      ...COMPUTER_SCIENCE_QUESTIONS.slice(0, 5),
-      ...APTITUDE_POOL.slice(0, 10)
-    ]
   }
 };
 
@@ -1673,10 +1577,6 @@ export function buildIntermediateStreamAssessment(
   // Try matching common aliases
   if (!config) {
     if (normalizedId.includes('mbipc')) config = INTERMEDIATE_STREAMS.mbipc;
-    else if (normalizedId.includes('mpc') && normalizedId.includes('cs')) config = INTERMEDIATE_STREAMS.mpc_cs;
-    else if (normalizedId.includes('bipc') && normalizedId.includes('cs')) config = INTERMEDIATE_STREAMS.bipc_cs;
-    else if (normalizedId.includes('mec') && normalizedId.includes('cs')) config = INTERMEDIATE_STREAMS.mec_cs;
-    else if (normalizedId.includes('cec') && normalizedId.includes('cs')) config = INTERMEDIATE_STREAMS.cec_cs;
     else if (normalizedId.includes('mpc')) config = INTERMEDIATE_STREAMS.mpc;
     else if (normalizedId.includes('bipc')) config = INTERMEDIATE_STREAMS.bipc;
     else if (normalizedId.includes('mec')) config = INTERMEDIATE_STREAMS.mec;

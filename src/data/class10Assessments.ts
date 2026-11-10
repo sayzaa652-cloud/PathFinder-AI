@@ -39,7 +39,7 @@ export const CLASS10_SCIENCE_ASSESSMENT: Assessment = {
     },
     {
       id: 'C10-SCI-02',
-      question: 'What gas do humans need to breathe in to stay alive?',
+      question: 'Which gas do humans need to breathe in to stay alive?',
       options: [
         { id: 'A', text: 'Oxygen' },
         { id: 'B', text: 'Carbon dioxide' },
@@ -54,7 +54,7 @@ export const CLASS10_SCIENCE_ASSESSMENT: Assessment = {
     },
     {
       id: 'C10-SCI-03',
-      question: 'What state of matter is water when it freezes into ice?',
+      question: 'Which state of matter is water when it freezes into ice?',
       options: [
         { id: 'A', text: 'Solid' },
         { id: 'B', text: 'Liquid' },

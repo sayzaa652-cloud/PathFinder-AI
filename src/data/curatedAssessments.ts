@@ -37,19 +37,7 @@ export const CURATED_ASSESSMENTS: Record<string, Assessment> = {
   // 6. MBiPC — Mathematics: 6, Biology: 5, Physics: 5, Chemistry: 4, Aptitude: 10 (Total: 30)
   mbipc: buildIntermediateStreamAssessment('mbipc')!,
 
-  // 7. BiPC with Computer Science — Biology: 6, Physics: 4, Chemistry: 4, Computer Science: 6, Aptitude: 10 (Total: 30)
-  bipc_cs: buildIntermediateStreamAssessment('bipc_cs')!,
-
-  // 8. MPC with Computer Science — Mathematics: 6, Physics: 4, Chemistry: 4, Computer Science: 6, Aptitude: 10 (Total: 30)
-  mpc_cs: buildIntermediateStreamAssessment('mpc_cs')!,
-
-  // 9. MEC with Computer Science — Mathematics: 5, Economics: 5, Commerce: 5, Computer Science: 5, Aptitude: 10 (Total: 30)
-  mec_cs: buildIntermediateStreamAssessment('mec_cs')!,
-
-  // 10. CEC with Computer Science — Civics: 5, Economics: 5, Commerce: 5, Computer Science: 5, Aptitude: 10 (Total: 30)
-  cec_cs: buildIntermediateStreamAssessment('cec_cs')!,
-
-  // 11. Other Specialization / Custom Subject Combination (Dynamic + 10 Aptitude)
+  // 7. Other Specialization / Custom Subject Combination (Dynamic + 10 Aptitude)
   custom_inter_spec: generateCustomIntermediateAssessment(['Mathematics', 'Economics', 'Computer Science']),
   other_specialization: generateCustomIntermediateAssessment(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
 };

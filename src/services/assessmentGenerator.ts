@@ -1327,29 +1327,9 @@ export function getOrGenerateAssessment(
     searchSlug.includes('hec') ||
     searchSlug.includes('mbipc');
 
-  // Handle all 11 Intermediate streams & combinations
+  // Handle Intermediate streams
   if (isIntermediate) {
-    // 1. MPC with Computer Science
-    if ((searchSlug.includes('mpc') && searchSlug.includes('cs')) || (searchSlug.includes('mpc') && searchSlug.includes('computer'))) {
-      const assessment = buildIntermediateStreamAssessment('mpc_cs', boardName);
-      if (assessment) return assessment;
-    }
-    // 2. BiPC with Computer Science
-    if ((searchSlug.includes('bipc') && searchSlug.includes('cs')) || (searchSlug.includes('bipc') && searchSlug.includes('computer'))) {
-      const assessment = buildIntermediateStreamAssessment('bipc_cs', boardName);
-      if (assessment) return assessment;
-    }
-    // 3. MEC with Computer Science
-    if ((searchSlug.includes('mec') && searchSlug.includes('cs')) || (searchSlug.includes('mec') && searchSlug.includes('computer'))) {
-      const assessment = buildIntermediateStreamAssessment('mec_cs', boardName);
-      if (assessment) return assessment;
-    }
-    // 4. CEC with Computer Science
-    if ((searchSlug.includes('cec') && searchSlug.includes('cs')) || (searchSlug.includes('cec') && searchSlug.includes('computer'))) {
-      const assessment = buildIntermediateStreamAssessment('cec_cs', boardName);
-      if (assessment) return assessment;
-    }
-    // 5. MBiPC
+    // MBiPC
     if (searchSlug.includes('mbipc')) {
       const assessment = buildIntermediateStreamAssessment('mbipc', boardName);
       if (assessment) return assessment;

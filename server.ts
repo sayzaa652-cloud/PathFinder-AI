@@ -40,13 +40,13 @@ app.get('/api/health', (_req, res) => {
 
 /**
  * Helper to generate content with exponential backoff with jitter and model fallback.
- * Speed-optimized:
- * - Primary model: gemini-3.8-flash (with ThinkingLevel.LOW for fast response time)
- * - Fallback models: gemini-3.1-flash-lite, gemini-flash-latest
+ * Speed and Quota-optimized:
+ * - Primary model: gemini-3.1-flash-lite (high throughput & higher quota on free tier)
+ * - Fallback models: gemini-flash-latest, gemini-3.8-flash (with ThinkingLevel.LOW)
  * - Low-latency retry delays (500ms, 1000ms, 2000ms + random jitter).
  */
 async function generateWithRetryAndFallback(contents: any, systemInstruction: string) {
-  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
   const baseDelays = [500, 1000, 2000, 4000];
   let lastError: any = null;
 
@@ -88,7 +88,8 @@ async function generateWithRetryAndFallback(contents: any, systemInstruction: st
           errMessage.includes('429') ||
           errMessage.includes('high demand') ||
           errMessage.includes('overloaded') ||
-          errMessage.includes('RESOURCE_EXHAUSTED');
+          errMessage.includes('RESOURCE_EXHAUSTED') ||
+          errMessage.includes('Quota exceeded');
 
         // If not a retryable overload error or max attempts reached for this model, try next model or throw
         if (!isOverload || attempt >= maxAttempts - 1) {
@@ -101,7 +102,7 @@ async function generateWithRetryAndFallback(contents: any, systemInstruction: st
         const jitter = Math.random() * 300;
         const delayMs = baseDelay + jitter;
 
-        console.warn(`Model ${model} busy (attempt ${attempt + 1}/${maxAttempts}). Retrying in ${Math.round(delayMs)}ms...`);
+        console.warn(`Model ${model} busy/rate-limited (attempt ${attempt + 1}/${maxAttempts}). Retrying in ${Math.round(delayMs)}ms...`);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
         attempt++;
       }
@@ -122,7 +123,7 @@ app.post('/api/chat', async (req, res) => {
 
     if (!apiKey) {
       return res.status(503).json({
-        error: 'Gemini API key is not configured. Please check Settings > Secrets.',
+        error: 'Gemini API key is not configured. Please select or add an API key in Settings > Secrets.',
         isApiKeyMissing: true,
       });
     }
@@ -156,7 +157,7 @@ CORE DIRECTIVES:
 
 2. LANGUAGE & MULTILINGUAL ADAPTATION (HIGHEST PRIORITY):
 - You MUST automatically detect the language used by the student in their latest message and respond in the EXACT SAME language.
-- Full native support for ALL Indian languages: Hindi (हिंदी), Telugu (తెలుగు), Tamil (தமிழ்), Bengali (বাংলা), Marathi (मराठी), Gujarati (ગુજરાતી), Kannada (ಕನ್ನಡ), Malayalam (മലയാളം), Punjabi (ਪੰਜਾਬੀ), Odia (ଓਡ଼ਿଆ), Urdu (اردو), Hinglish, and English.
+- Full native support for ALL Indian languages: Hindi (हिंदी), Telugu (తెలుగు), Tamil (தமிழ்), Bengali (বাংলা), Marathi (मराठी), Gujarati (ગુજરાતી), Kannada (ಕನ್ನಡ), Malayalam (മലയാളം), Punjabi (ਪੰਜਾਬੀ), Odia (ଓਡ଼ਿਆ), Urdu (اردو), Hinglish, and English.
 - If the student switches languages at ANY point during the chat, immediately switch and reply in that new language.
 
 3. BEAUTIFUL FORMATTING WHEN DETAILED:
@@ -211,26 +212,72 @@ CORE DIRECTIVES:
     return res.json({ reply });
   } catch (err: any) {
     console.error('Server /api/chat error after retries & fallback:', err);
-    const errMessage = err?.message || 'An error occurred while generating response';
+    const errMessage = err?.message || String(err) || 'An error occurred while generating response';
     const status = err?.status || 500;
-    const isOverload =
-      status === 503 ||
+    const isQuotaOrOverload =
       status === 429 ||
-      errMessage.includes('503') ||
+      status === 503 ||
+      errMessage.includes('Quota exceeded') ||
+      errMessage.includes('RESOURCE_EXHAUSTED') ||
       errMessage.includes('429') ||
+      errMessage.includes('503') ||
       errMessage.includes('overloaded') ||
-      errMessage.includes('high demand') ||
-      errMessage.includes('RESOURCE_EXHAUSTED');
+      errMessage.includes('high demand');
 
-    if (isOverload) {
-      return res.status(503).json({
-        error: 'PathFinder is experiencing high traffic right now. Please try again in a few moments.',
-        isRateLimit: true,
+    if (isQuotaOrOverload) {
+      return res.status(429).json({
+        error: 'Free tier API quota limit reached for today. To increase your rate limits and quota, please select a billing-enabled API key in the Settings > Secrets panel.',
+        isQuotaExceeded: true,
       });
     }
 
     return res.status(500).json({
       error: errMessage,
+    });
+  }
+});
+
+// Socratic AI Mentor Endpoint for MPC Skill Gap Topics
+app.post('/api/mentor', async (req, res) => {
+  try {
+    const { topicName, subject, userQuestion, conversationHistory = [], studentName = 'Student' } = req.body;
+
+    if (!userQuestion || typeof userQuestion !== 'string') {
+      return res.status(400).json({ error: 'User question is required.' });
+    }
+
+    if (!apiKey) {
+      return res.status(503).json({
+        error: 'Gemini API key is not configured. Please select or add an API key in Settings > Secrets.',
+        isApiKeyMissing: true,
+      });
+    }
+
+    const systemInstruction = `You are the PathFinder Socratic AI Mentor for Telangana Intermediate MPC students studying ${subject || 'MPC Subjects'} (${topicName || 'Current Topic'}).
+Student Name: ${studentName}
+
+YOUR MANDATE & SOCRATIC RULES:
+1. STEP-BY-STEP GUIDANCE & HINTS FIRST: When a student asks a problem or asks for help, NEVER give just the final answer or full derivation immediately. Give a gentle concept hint first, explain the underlying rule in simple clear English suitable for Telangana Intermediate MPC students, and ask a short guiding question to help them figure out the next step.
+2. SYLLABUS RELEVANCE: Stick strictly to the Intermediate MPC syllabus (Mathematics 1A, Mathematics 1B, Physics, Chemistry).
+3. ENCOURAGE SELF-EXPLANATION: Prompt the student to explain the formula or step in their own words (e.g. "What do you think happens to the sign when we move -12 to the right side?").
+4. CLEAR FORMATTING: Use clean Markdown with bold terms and clear step-by-step formatting.
+5. CONCISE & ENCOURAGING: Keep responses warm, encouraging, and focused (2-3 short paragraphs max).`;
+
+    const contents = [
+      ...conversationHistory.slice(-6).map((m: any) => ({
+        role: m.sender === 'ai_mentor' || m.role === 'model' || m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.text || m.content || '' }],
+      })),
+      { role: 'user', parts: [{ text: userQuestion }] },
+    ];
+
+    const response = await generateWithRetryAndFallback(contents, systemInstruction);
+    const reply = response.text || '';
+    return res.json({ reply });
+  } catch (err: any) {
+    console.error('Server /api/mentor error:', err);
+    return res.status(500).json({
+      error: err?.message || 'Unable to connect to AI Mentor right now. Please try again.',
     });
   }
 });

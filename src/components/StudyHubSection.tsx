@@ -5,6 +5,8 @@ import {
   ChevronDown, ChevronUp, Search, Layers, Lightbulb
 } from 'lucide-react';
 import { PREVIOUS_YEAR_PAPERS, SMART_NOTES_DATA, DEFAULT_STUDY_PLAN_SLOTS } from '../data/studyHubData';
+import { MATHEMATICS_STICKY_NOTES } from '../data/mathStickyNotesData';
+import { MathematicsConceptNotes } from './MathematicsConceptNotes';
 import { StudyPlanSlot, SmartNoteItem, PreviousYearPaper } from '../types';
 import { storageService } from '../services/storageService';
 
@@ -17,7 +19,8 @@ export const StudyHubSection: React.FC<StudyHubSectionProps> = ({
   onOpenRoadmap,
   onLaunchAssessment
 }) => {
-  const [activeTab, setActiveTab] = useState<'pyqs' | 'planner' | 'notes'>('pyqs');
+  const [activeTab, setActiveTab] = useState<'pyqs' | 'planner' | 'notes'>('notes');
+  const [notesViewMode, setNotesViewMode] = useState<'stickyMath' | 'general'>('stickyMath');
 
   // PYQ State
   const [pyqFilter, setPyqFilter] = useState<string>('All');
@@ -162,9 +165,9 @@ export const StudyHubSection: React.FC<StudyHubSectionProps> = ({
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>Quick Revision Notes</span>
+            <span>Mathematics Concept Notes</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20">
-              {smartNotes.length}
+              {MATHEMATICS_STICKY_NOTES.length}
             </span>
           </button>
         </div>
@@ -478,115 +481,154 @@ export const StudyHubSection: React.FC<StudyHubSectionProps> = ({
         </div>
       )}
 
-      {/* TAB 3: SMART NOTES & RAPID REVISION */}
+      {/* TAB 3: MATHEMATICS CONCEPT NOTES & REVISION */}
       {activeTab === 'notes' && (
         <div className="space-y-6">
           
-          {/* Search Bar */}
-          <div className="p-4 rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/50 flex items-center gap-3">
-            <Search className="w-4 h-4 text-[#722F45]" />
-            <input
-              type="text"
-              placeholder="Search smart notes by subject or topic (e.g., Calculus, Respiration, Elasticity)..."
-              value={noteSearch}
-              onChange={(e) => setNoteSearch(e.target.value)}
-              className="flex-1 bg-transparent text-xs text-[#2D2226] focus:outline-none placeholder:text-[#6C555C]"
-            />
+          {/* Sub-Switch: Textbook Digital Sticky Notes vs General Flashcards */}
+          <div className="flex items-center justify-between flex-wrap gap-3 p-3.5 rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/50">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#722F45]">Choose Notes Format:</span>
+            </div>
+
+            <div className="inline-flex p-1 rounded-xl bg-white/90 border border-[#D5A3AE]/50 shadow-2xs">
+              <button
+                onClick={() => setNotesViewMode('stickyMath')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  notesViewMode === 'stickyMath'
+                    ? 'bg-[#722F45] text-white shadow-xs'
+                    : 'text-[#2D2226] hover:text-[#722F45]'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Textbook Sticky Notes ({MATHEMATICS_STICKY_NOTES.length})</span>
+              </button>
+
+              <button
+                onClick={() => setNotesViewMode('general')}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  notesViewMode === 'general'
+                    ? 'bg-[#722F45] text-white shadow-xs'
+                    : 'text-[#2D2226] hover:text-[#722F45]'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>General Revision Flashcards ({smartNotes.length})</span>
+              </button>
+            </div>
           </div>
 
-          {/* Notes Cards */}
-          <div className="space-y-4">
-            {filteredNotes.map((note) => {
-              const isExpanded = expandedNoteId === note.id;
-              return (
-                <div
-                  key={note.id}
-                  className="rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/60 overflow-hidden shadow-xs transition-all"
-                >
-                  <div
-                    onClick={() => setExpandedNoteId(isExpanded ? null : note.id)}
-                    className="p-5 flex items-center justify-between gap-3 cursor-pointer hover:bg-[#FAF4EE]/80"
-                  >
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] bg-[#D5A3AE]/30 px-2 py-0.5 rounded">
-                        {note.subject}
-                      </span>
-                      <h3 className="font-bold text-sm text-[#722F45] mt-1">
-                        {note.topic}
-                      </h3>
-                    </div>
+          {notesViewMode === 'stickyMath' ? (
+            <MathematicsConceptNotes onLaunchAssessment={onLaunchAssessment} />
+          ) : (
+            <>
+              {/* Search Bar for General Notes */}
+              <div className="p-4 rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/50 flex items-center gap-3">
+                <Search className="w-4 h-4 text-[#722F45]" />
+                <input
+                  type="text"
+                  placeholder="Search general notes by subject or topic (e.g., Calculus, Respiration, Elasticity)..."
+                  value={noteSearch}
+                  onChange={(e) => setNoteSearch(e.target.value)}
+                  className="flex-1 bg-transparent text-xs text-[#2D2226] focus:outline-none placeholder:text-[#6C555C]"
+                />
+              </div>
 
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-[#722F45]" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-[#722F45]" />
-                    )}
-                  </div>
-
-                  {isExpanded && (
-                    <div className="px-5 pb-5 pt-2 border-t border-[#D5A3AE]/30 space-y-4">
-                      
-                      {/* Summary Points */}
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-[#722F45] mb-2">
-                          Key Study Points:
-                        </h4>
-                        <ul className="space-y-1.5 text-xs text-[#2D2226]">
-                          {note.summaryBulletPoints.map((pt, pIdx) => (
-                            <li key={pIdx} className="flex items-start gap-2">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#722F45] mt-1.5 shrink-0" />
-                              <span className="leading-relaxed">{pt}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* Formulas & Concepts */}
-                      <div className="p-4 rounded-xl bg-white border border-[#D5A3AE]/40 space-y-2">
-                        <h4 className="text-xs font-bold text-[#722F45] flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-[#8C4057]" />
-                          <span>Key Formulas &amp; Rules:</span>
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                          {note.keyFormulasOrConcepts.map((f, fIdx) => (
-                            <div
-                              key={fIdx}
-                              className="p-2 rounded-lg bg-[#FAF4EE] border border-[#D5A3AE]/30 font-mono text-[11px] text-[#722F45]"
-                            >
-                              {f}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Common Exam Pitfalls */}
-                      <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-1">
-                        <div className="flex items-center gap-1.5 font-bold text-amber-950">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                          <span>Mistakes to Avoid in Exams:</span>
-                        </div>
-                        <ul className="list-disc list-inside space-y-1 pl-1 text-[11px]">
-                          {note.commonExamPitfalls.map((pitfall, pitIdx) => (
-                            <li key={pitIdx}>{pitfall}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* AI Cross-Disciplinary Note */}
-                      <div className="p-3 rounded-xl bg-[#DFCEBE]/30 border border-[#D5A3AE]/40 text-xs text-[#6C555C] flex items-start gap-2">
-                        <Lightbulb className="w-4 h-4 text-[#8C4057] shrink-0 mt-0.5" />
+              {/* Notes Cards */}
+              <div className="space-y-4">
+                {filteredNotes.map((note) => {
+                  const isExpanded = expandedNoteId === note.id;
+                  return (
+                    <div
+                      key={note.id}
+                      className="rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/60 overflow-hidden shadow-xs transition-all"
+                    >
+                      <div
+                        onClick={() => setExpandedNoteId(isExpanded ? null : note.id)}
+                        className="p-5 flex items-center justify-between gap-3 cursor-pointer hover:bg-[#FAF4EE]/80"
+                      >
                         <div>
-                          <strong className="text-[#722F45]">Real-World &amp; AI Connection: </strong>
-                          <span>{note.aiCrossDisciplinaryNote}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] bg-[#D5A3AE]/30 px-2 py-0.5 rounded">
+                            {note.subject}
+                          </span>
+                          <h3 className="font-bold text-sm text-[#722F45] mt-1">
+                            {note.topic}
+                          </h3>
                         </div>
+
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-[#722F45]" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-[#722F45]" />
+                        )}
                       </div>
 
+                      {isExpanded && (
+                        <div className="px-5 pb-5 pt-2 border-t border-[#D5A3AE]/30 space-y-4">
+                          
+                          {/* Summary Points */}
+                          <div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-[#722F45] mb-2">
+                              Key Study Points:
+                            </h4>
+                            <ul className="space-y-1.5 text-xs text-[#2D2226]">
+                              {note.summaryBulletPoints.map((pt, pIdx) => (
+                                <li key={pIdx} className="flex items-start gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#722F45] mt-1.5 shrink-0" />
+                                  <span className="leading-relaxed">{pt}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Formulas & Concepts */}
+                          <div className="p-4 rounded-xl bg-white border border-[#D5A3AE]/40 space-y-2">
+                            <h4 className="text-xs font-bold text-[#722F45] flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-[#8C4057]" />
+                              <span>Key Formulas &amp; Rules:</span>
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {note.keyFormulasOrConcepts.map((f, fIdx) => (
+                                <div
+                                  key={fIdx}
+                                  className="p-2 rounded-lg bg-[#FAF4EE] border border-[#D5A3AE]/30 font-mono text-[11px] text-[#722F45]"
+                                >
+                                  {f}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Common Exam Pitfalls */}
+                          <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                              <span>Mistakes to Avoid in Exams:</span>
+                            </div>
+                            <ul className="list-disc list-inside space-y-1 pl-1 text-[11px]">
+                              {note.commonExamPitfalls.map((pitfall, pitIdx) => (
+                                <li key={pitIdx}>{pitfall}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* AI Cross-Disciplinary Note */}
+                          <div className="p-3 rounded-xl bg-[#DFCEBE]/30 border border-[#D5A3AE]/40 text-xs text-[#6C555C] flex items-start gap-2">
+                            <Lightbulb className="w-4 h-4 text-[#8C4057] shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="text-[#722F45]">Real-World &amp; AI Connection: </strong>
+                              <span>{note.aiCrossDisciplinaryNote}</span>
+                            </div>
+                          </div>
+
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
         </div>
       )}

@@ -109,7 +109,6 @@ export const STREAM_METADATA = {
     shortTitle: 'Tech & AI Stream (MPC / CSE / BCA / IT)',
     recommendedCourses: [
       'Intermediate: MPC (Mathematics, Physics, Chemistry)',
-      'Intermediate: MPC with Computer Science',
       'Undergraduate: B.Tech Computer Science & AI / Data Science',
       'Undergraduate: BCA (Artificial Intelligence & Machine Learning)',
       'Undergraduate: B.Sc. MSDS (Maths, Stats & Data Science)',

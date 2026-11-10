@@ -504,11 +504,19 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
         })
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let data: any = {};
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn('Server non-JSON response:', text.slice(0, 150));
+        data = { error: 'The AI service returned a non-JSON response. Please try again in a moment.' };
+      }
 
       if (!response.ok) {
-        if (response.status === 429 || data.isRateLimit) {
-          throw new Error('Rate limit reached. The AI service is experiencing high traffic. Please wait a moment and try again.');
+        if (response.status === 429 || data.isQuotaExceeded) {
+          throw new Error('Quota limit reached on free tier. To increase your quota, please select a billing-enabled API key in Settings > Secrets.');
         }
         throw new Error(data.error || 'Failed to get a response from the AI assistant.');
       }
@@ -535,14 +543,14 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
       );
     } catch (err: any) {
       console.error('Chat error:', err);
-      const friendlyMsg = 'PathFinder is experiencing high traffic right now. Please try again in a few moments.';
-      setErrorBanner(friendlyMsg);
+      const errMsg = err?.message || 'Something went wrong. Please try again.';
+      setErrorBanner(errMsg);
 
       // Add a friendly error response in the chat with a Retry action
       const fallbackAssistantMessage: ChatMessage = {
         id: 'msg-err-' + Date.now(),
         role: 'assistant',
-        content: `⚠️ **${friendlyMsg}**\n\n*Click the Regenerate button below or re-send your message to try again.*`,
+        content: `⚠️ **Unable to complete request:** ${errMsg}\n\n*Click Regenerate or select a billing-enabled API key in Settings > Secrets to continue.*`,
         timestamp: Date.now()
       };
 
@@ -624,8 +632,20 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
         })
       });
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      let data: any = {};
+      if (contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn('Server non-JSON response:', text.slice(0, 150));
+        data = { error: 'The AI service returned a non-JSON response.' };
+      }
+
       if (!response.ok) {
+        if (response.status === 429 || data.isQuotaExceeded) {
+          throw new Error('Quota limit reached on free tier. To increase your quota, please select a billing-enabled API key in Settings > Secrets.');
+        }
         throw new Error(data.error || 'Failed to regenerate response.');
       }
 

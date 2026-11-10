@@ -252,6 +252,119 @@ export interface DailyPlanTask {
   reflectionQuestion?: string;
 }
 
+export interface ConceptExplanation {
+  summary: string;
+  keyPoints: string[];
+  realWorldExample: string;
+  syllabusVerificationNote?: string;
+  propertiesAndDefinitions?: { term: string; definition: string }[];
+}
+
+export interface FormulaItem {
+  name: string;
+  formula: string;
+  variableDefinitions: string;
+  usageTip: string;
+}
+
+export interface SolvedExample {
+  id: string;
+  problemStatement: string;
+  givenData: string;
+  stepByStepSolution: {
+    stepNumber: number;
+    title: string;
+    description: string;
+    mathOrFormula?: string;
+  }[];
+  finalAnswer: string;
+  conceptTakeaway: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: MCQOption[];
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  hint: string;
+  level?: 'Beginner' | 'Intermediate' | 'Advanced';
+}
+
+export interface VisualLearningItem {
+  mindMapTitle: string;
+  centralConcept: string;
+  nodes: {
+    id: string;
+    label: string;
+    subtext: string;
+    keyFormulaOrRule?: string;
+    branches?: string[];
+  }[];
+  diagramSummary?: string;
+  formulaCards?: FormulaItem[];
+}
+
+export interface RealLifeApplication {
+  id: string;
+  title: string;
+  field: string; // e.g., "Satellite Orbit Trajectory", "Structural Engineering", "E-Commerce Recommendation Algorithms"
+  realWorldScenario: string;
+  howConceptIsUsed: string;
+  practicalTakeaway: string;
+}
+
+export interface PracticeZoneItem {
+  id: string;
+  title: string;
+  category: 'Textbook Standard' | 'Numerical Problem' | 'Application Challenge';
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  problemText: string;
+  givenParameters?: string;
+  stepByStepSolution: {
+    stepNumber: number;
+    title: string;
+    explanation: string;
+    mathOrFormula?: string;
+  }[];
+  finalAnswer: string;
+  examTip: string;
+}
+
+export interface MiniProjectChallenge {
+  id: string;
+  title: string;
+  subjectContext: string;
+  objective: string;
+  instructions: string[];
+  expectedDeliverable: string;
+  sampleSolutionGuide: string;
+  rubricCriteria: {
+    criterion: string;
+    maxPoints: number;
+    description: string;
+  }[];
+}
+
+export interface ProjectSubmissionRecord {
+  projectId: string;
+  studentResponse: string;
+  submittedAt: string;
+  scoreAchieved: number; // e.g. 18 / 20
+  feedbackText: string;
+  isPassed: boolean;
+}
+
+export interface WeeklyProgressTest {
+  id: string;
+  title: string;
+  description: string;
+  questions: QuizQuestion[];
+  passingScore: number;
+  isCompleted?: boolean;
+  scoreAchieved?: number;
+}
+
 export interface WeeklyPlan {
   weekNumber: number; // 1 to 4
   title: string;
@@ -260,6 +373,16 @@ export interface WeeklyPlan {
   whyThisWeek: string; // Explainable AI
   tasks: DailyPlanTask[];
   isCompleted: boolean;
+  conceptExplanation?: ConceptExplanation;
+  formulas?: FormulaItem[];
+  solvedExamples?: SolvedExample[];
+  practiceQuiz?: QuizQuestion[];
+  quizGameQuestions?: QuizQuestion[];
+  weeklyProgressTest?: WeeklyProgressTest;
+  visualLearning?: VisualLearningItem;
+  realLifeApplications?: RealLifeApplication[];
+  practiceZone?: PracticeZoneItem[];
+  miniProject?: MiniProjectChallenge;
 }
 
 export interface SkillGapItem {
@@ -268,8 +391,18 @@ export interface SkillGapItem {
   domain: string;
   currentProficiency: number; // 0 - 100
   targetProficiency: number; // e.g. 85
-  status: 'Critical Gap' | 'Developing' | 'Near Mastery' | 'Mastered';
+  status: 'Mastered' | 'Developing' | 'Needs Improvement' | 'Not Assessed';
+  isAssessed: boolean;
+  correctAnswers: number;
+  incorrectAnswers: number;
+  totalQuestions: number;
   identifiedFrom: string;
+  subjectScoreBreakdown?: {
+    subject: string;
+    score: number;
+    total: number;
+    percentage: number;
+  };
   fourWeekPlan: WeeklyPlan[];
   practiceDrill: {
     question: string;
@@ -277,6 +410,33 @@ export interface SkillGapItem {
     methodology: string; // Hint 2
     workedApproach: string;
   };
+}
+
+export interface AdditionalSkillLesson {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  summary: string;
+  keyPoints: string[];
+  contentSections: {
+    heading: string;
+    body: string;
+    codeOrFormula?: string;
+  }[];
+  practicalExercise?: string;
+  quiz?: QuizQuestion[];
+  isCompleted: boolean;
+}
+
+export interface AdditionalSkillModule {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  iconName: string;
+  lessons: AdditionalSkillLesson[];
+  completedLessonsCount: number;
+  totalLessonsCount: number;
 }
 
 // -------------------------------------------------------------

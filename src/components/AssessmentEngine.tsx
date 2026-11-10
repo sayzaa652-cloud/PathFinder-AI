@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Assessment, AssessmentQuestion, AssessmentResult, LearningResource, TopicScore, SkillGapItem } from '../types';
 import { storageService } from '../services/storageService';
+import { generateSkillGapItems } from '../services/skillGapService';
 
 interface AssessmentEngineProps {
   assessment: Assessment;
@@ -168,83 +169,12 @@ export const AssessmentEngine: React.FC<AssessmentEngineProps> = ({
     setIsSubmitted(true);
     storageService.saveAssessmentResult(finalResult);
 
-    // Auto-update Skill Gap Tracker so student has immediate 4-week recovery plan
-    if (skillGaps.length > 0) {
-      try {
-        const existingGaps = storageService.getSkillGapItems();
-        const newGaps: SkillGapItem[] = skillGaps.map((gap, gIdx) => {
-          const match = existingGaps.find((eg) => eg.skillName.toLowerCase() === gap.toLowerCase());
-          if (match) return match;
-          return {
-            id: `sg-${Date.now()}-${gIdx}`,
-            skillName: gap,
-            domain: assessment.specialization || 'Academic Foundation',
-            currentProficiency: Math.min(60, Math.max(25, percentage)),
-            targetProficiency: 85,
-            status: 'Critical Gap',
-            identifiedFrom: `${assessment.title} Diagnostic`,
-            fourWeekPlan: [
-              {
-                weekNumber: 1,
-                title: 'Week 1: Core Concepts Rebuild',
-                focusArea: `${gap} Fundamentals`,
-                objective: 'Review basic Class 10 concepts and core definitions',
-                whyThisWeek: `Focus review based on your diagnostic results in ${gap}`,
-                isCompleted: false,
-                tasks: [
-                  {
-                    id: `task-1-${gIdx}`,
-                    dayNumber: 1,
-                    title: 'Concept Notes & Basic Rules',
-                    description: `Read core notes for ${gap} and solve 5 beginner problems.`,
-                    taskType: 'Theory Rebuild',
-                    estimatedMinutes: 25,
-                    completed: false,
-                    hint: 'Focus on everyday examples and simple definitions before trying hard questions.'
-                  }
-                ]
-              },
-              {
-                weekNumber: 2,
-                title: 'Week 2: Step-by-Step Practice',
-                focusArea: 'Standard Problem Solving',
-                objective: 'Solve beginner questions with hints',
-                whyThisWeek: 'Build confidence with scaffolded hints without AI spoonfeeding',
-                isCompleted: false,
-                tasks: []
-              },
-              {
-                weekNumber: 3,
-                title: 'Week 3: Timed Exercises',
-                focusArea: 'Speed and Confidence',
-                objective: 'Complete short practice sets within time limits',
-                whyThisWeek: 'Enhance accuracy and exam readiness',
-                isCompleted: false,
-                tasks: []
-              },
-              {
-                weekNumber: 4,
-                title: 'Week 4: Comprehensive Review',
-                focusArea: 'Full Mastery Check',
-                objective: 'Score 85%+ on review assessment',
-                whyThisWeek: 'Verify permanent skill gap closure',
-                isCompleted: false,
-                tasks: []
-              }
-            ],
-            practiceDrill: {
-              question: `Practice review drill on ${gap}`,
-              conceptClue: 'Recall the foundational Class 10 rule or formula.',
-              methodology: 'Break down the question into known values, required output, and direct formula.',
-              workedApproach: 'Apply the definition directly to arrive at the solution.'
-            }
-          };
-        });
-        const mergedGaps = [...newGaps, ...existingGaps.filter(eg => !skillGaps.some(g => g.toLowerCase() === eg.skillName.toLowerCase()))];
-        storageService.saveSkillGapItems(mergedGaps);
-      } catch (e) {
-        console.error('Failed to sync skill gaps to storage', e);
-      }
+    // Auto-update Skill Gap Tracker using deterministic MPC subject generator
+    try {
+      const freshGaps = generateSkillGapItems(null, [finalResult]);
+      storageService.saveSkillGapItems(freshGaps);
+    } catch (e) {
+      console.error('Failed to sync skill gaps to storage', e);
     }
   };
 
@@ -625,8 +555,214 @@ export const AssessmentEngine: React.FC<AssessmentEngineProps> = ({
 
             </div>
 
-            {/* Dedicated Aptitude Section Scorecard */}
+            {/* Dedicated MPC 5-Subject Scorecard (Math 1A: 4, Math 1B: 4, Physics: 6, Chemistry: 6, Aptitude: 10) */}
             {(() => {
+              const isMPC = result.specialization.toLowerCase().includes('mpc') || result.assessmentTitle.toLowerCase().includes('mpc');
+              if (!isMPC) return null;
+
+              const m1a = result.topicPerformance.find((tp) => tp.topic.toLowerCase().includes('mathematics 1a')) || { correct: 0, total: 4, percentage: 0 };
+              const m1b = result.topicPerformance.find((tp) => tp.topic.toLowerCase().includes('mathematics 1b')) || { correct: 0, total: 4, percentage: 0 };
+              const phys = result.topicPerformance.find((tp) => tp.topic.toLowerCase().includes('physic')) || { correct: 0, total: 6, percentage: 0 };
+              const chem = result.topicPerformance.find((tp) => tp.topic.toLowerCase().includes('chem')) || { correct: 0, total: 6, percentage: 0 };
+              const apt = result.topicPerformance.find((tp) => tp.topic.toLowerCase().includes('aptitude') || tp.topic.toLowerCase().includes('reasoning')) || { correct: 0, total: 10, percentage: 0 };
+
+              const getStatusBadge = (pct: number) => {
+                if (pct >= 85) return { label: 'Mastered', color: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+                if (pct >= 67) return { label: 'Developing', color: 'bg-amber-100 text-amber-900 border-amber-300' };
+                return { label: 'Needs Improvement', color: 'bg-rose-100 text-rose-900 border-rose-300' };
+              };
+
+              return (
+                <div className="p-5 rounded-2xl bg-white border-2 border-[#722F45]/30 shadow-md mb-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#D5A3AE]/40">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-[#722F45] px-2.5 py-0.5 rounded-full">
+                          MPC 5-Subject Diagnostic Scorecard
+                        </span>
+                        <span className="text-xs font-semibold text-[#8C4057]">
+                          30 Questions Total
+                        </span>
+                      </div>
+                      <h4 className="text-base font-bold text-[#722F45] mt-1 font-serif-accent">
+                        Mathematics 1A (4) · Mathematics 1B (4) · Physics (6) · Chemistry (6) · General Aptitude (10)
+                      </h4>
+                    </div>
+                    {onViewSkillGaps && (
+                      <button
+                        onClick={onViewSkillGaps}
+                        className="px-4 py-2 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-[#D5A3AE]" />
+                        <span>Launch MPC Skill Gap Tracker &rarr;</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 5 Cards Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {/* Math 1A Card */}
+                    {(() => {
+                      const badge = getStatusBadge(m1a.percentage);
+                      return (
+                        <div className="p-4 rounded-xl border border-[#D5A3AE]/60 bg-[#FAF4EE] flex flex-col justify-between space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#722F45]">Math 1A</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#722F45]">
+                            {m1a.correct} <span className="text-xs font-semibold text-[#8C4057]">/ {m1a.total}</span>
+                          </div>
+                          <div>
+                            <div className="w-full bg-[#E8D5C4] h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${m1a.percentage >= 85 ? 'bg-emerald-600' : m1a.percentage >= 67 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                                style={{ width: `${m1a.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-[#5A454C] block mt-1">
+                              {m1a.percentage}% Accuracy
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Math 1B Card */}
+                    {(() => {
+                      const badge = getStatusBadge(m1b.percentage);
+                      return (
+                        <div className="p-4 rounded-xl border border-[#D5A3AE]/60 bg-[#FAF4EE] flex flex-col justify-between space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#722F45]">Math 1B</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#722F45]">
+                            {m1b.correct} <span className="text-xs font-semibold text-[#8C4057]">/ {m1b.total}</span>
+                          </div>
+                          <div>
+                            <div className="w-full bg-[#E8D5C4] h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${m1b.percentage >= 85 ? 'bg-emerald-600' : m1b.percentage >= 67 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                                style={{ width: `${m1b.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-[#5A454C] block mt-1">
+                              {m1b.percentage}% Accuracy
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Physics Card */}
+                    {(() => {
+                      const badge = getStatusBadge(phys.percentage);
+                      return (
+                        <div className="p-4 rounded-xl border border-[#D5A3AE]/60 bg-[#FAF4EE] flex flex-col justify-between space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#722F45]">Physics</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#722F45]">
+                            {phys.correct} <span className="text-xs font-semibold text-[#8C4057]">/ {phys.total}</span>
+                          </div>
+                          <div>
+                            <div className="w-full bg-[#E8D5C4] h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${phys.percentage >= 85 ? 'bg-emerald-600' : phys.percentage >= 67 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                                style={{ width: `${phys.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-[#5A454C] block mt-1">
+                              {phys.percentage}% Accuracy
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Chemistry Card */}
+                    {(() => {
+                      const badge = getStatusBadge(chem.percentage);
+                      return (
+                        <div className="p-4 rounded-xl border border-[#D5A3AE]/60 bg-[#FAF4EE] flex flex-col justify-between space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#722F45]">Chemistry</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#722F45]">
+                            {chem.correct} <span className="text-xs font-semibold text-[#8C4057]">/ {chem.total}</span>
+                          </div>
+                          <div>
+                            <div className="w-full bg-[#E8D5C4] h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${chem.percentage >= 85 ? 'bg-emerald-600' : chem.percentage >= 67 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                                style={{ width: `${chem.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-[#5A454C] block mt-1">
+                              {chem.percentage}% Accuracy
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Aptitude Card */}
+                    {(() => {
+                      const badge = getStatusBadge(apt.percentage);
+                      return (
+                        <div className="p-4 rounded-xl border border-[#D5A3AE]/60 bg-[#FAF4EE] flex flex-col justify-between space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#722F45]">Aptitude</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badge.color}`}>
+                              {badge.label}
+                            </span>
+                          </div>
+                          <div className="text-2xl font-extrabold text-[#722F45]">
+                            {apt.correct} <span className="text-xs font-semibold text-[#8C4057]">/ {apt.total}</span>
+                          </div>
+                          <div>
+                            <div className="w-full bg-[#E8D5C4] h-1.5 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${apt.percentage >= 85 ? 'bg-emerald-600' : apt.percentage >= 67 ? 'bg-amber-600' : 'bg-rose-600'}`}
+                                style={{ width: `${apt.percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-[#5A454C] block mt-1">
+                              {apt.percentage}% Accuracy
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Rule 6 Note */}
+                  <div className="text-[11px] text-[#5A454C] bg-[#FAF4EE] p-2.5 rounded-lg border border-[#D5A3AE]/40 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      <strong>Fair Evaluation Rule:</strong> A single incorrect answer does not mark an entire subject as weak. A subject is only flagged for a 4-week recovery plan if overall subject accuracy drops below 85%.
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Dedicated Aptitude Section Scorecard for non-MPC */}
+            {(() => {
+              const isMPC = result.specialization.toLowerCase().includes('mpc') || result.assessmentTitle.toLowerCase().includes('mpc');
+              if (isMPC) return null;
+
               const aptitudeScore = result.topicPerformance.find(
                 (tp) => tp.topic.toLowerCase().includes('aptitude') || tp.topic.toLowerCase().includes('reasoning')
               );

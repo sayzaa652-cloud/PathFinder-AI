@@ -131,11 +131,7 @@ export const Hero: React.FC<HeroProps> = ({
               { id: 'mec', label: 'MEC Stream', desc: '8 Math, 6 Econ, 6 Comm + 10 Apt' },
               { id: 'cec', label: 'CEC Stream', desc: '7 Civ, 7 Econ, 6 Comm + 10 Apt' },
               { id: 'hec', label: 'HEC Stream', desc: '5 Hist, 5 Econ, 5 Civ + 10 Apt' },
-              { id: 'mbipc', label: 'MBiPC 4-Subject', desc: '6 Math, 5 Bio, 5 Phys, 4 Chem + 10 Apt' },
-              { id: 'mpc_cs', label: 'MPC with CS', desc: '6 Math, 4 Phys, 4 Chem, 6 CS + 10 Apt' },
-              { id: 'bipc_cs', label: 'BiPC with CS', desc: '6 Bio, 4 Phys, 4 Chem, 6 CS + 10 Apt' },
-              { id: 'mec_cs', label: 'MEC with CS', desc: '5 Math, 5 Econ, 5 Comm, 5 CS + 10 Apt' },
-              { id: 'cec_cs', label: 'CEC with CS', desc: '5 Civ, 5 Econ, 5 Comm, 5 CS + 10 Apt' }
+              { id: 'mbipc', label: 'MBiPC 4-Subject', desc: '6 Math, 5 Bio, 5 Phys, 4 Chem + 10 Apt' }
             ].map((item) => (
               <button
                 key={item.id}

@@ -162,38 +162,6 @@ export const EDUCATION_LEVELS: EducationLevelConfig[] = [
                 ]
               },
               {
-                id: 'mpc_cs',
-                title: 'MPC with Computer Science, where offered',
-                code: 'MPC-CS',
-                category: 'Science',
-                boardsAllowed: ['Telangana Intermediate (TSBIE)', 'CBSE', 'CISCE', 'Other boards'],
-                yearsAllowed: ['First Year (11th)', 'Second Year (12th)'],
-                specializations: [
-                  {
-                    id: 'mpc_cs_spec',
-                    title: 'MPC with Computer Science & Informatics',
-                    description: 'Maths, Physics, Chemistry integrated with Python/C++ and computational logic.',
-                    careerPaths: ['B.Tech CSE / AI', 'Software Engineering', 'Robotics', 'Quantum Computing']
-                  }
-                ]
-              },
-              {
-                id: 'bipc_cs',
-                title: 'BiPC with Computer Science, where offered',
-                code: 'BiPC-CS',
-                category: 'Science',
-                boardsAllowed: ['Telangana Intermediate (TSBIE)', 'CBSE', 'CISCE', 'Other boards'],
-                yearsAllowed: ['First Year (11th)', 'Second Year (12th)'],
-                specializations: [
-                  {
-                    id: 'bipc_cs_spec',
-                    title: 'BiPC with Computer Science & Bio-computation',
-                    description: 'Life sciences with algorithms, programming, and biological databases.',
-                    careerPaths: ['Computational Biology', 'Health Informatics', 'Bioinformatics', 'Genomics']
-                  }
-                ]
-              },
-              {
                 id: 'other_science',
                 title: 'Other Science combinations',
                 code: 'SCI-OTHER',
@@ -277,38 +245,6 @@ export const EDUCATION_LEVELS: EducationLevelConfig[] = [
                     title: 'Commerce with Computer Applications & IT',
                     description: 'Accounting systems, spreadsheets, ERP, and computerized commerce.',
                     careerPaths: ['B.Com Computer Applications', 'BCA', 'E-Commerce Management', 'Digital Accounting']
-                  }
-                ]
-              },
-              {
-                id: 'mec_cs',
-                title: 'MEC with Computer Science',
-                code: 'MEC-CS',
-                category: 'Commerce',
-                boardsAllowed: ['Telangana Intermediate (TSBIE)', 'CBSE', 'CISCE', 'Andhra Pradesh (BIEAP)', 'Other boards'],
-                yearsAllowed: ['First Year (11th)', 'Second Year (12th)'],
-                specializations: [
-                  {
-                    id: 'mec_cs_spec',
-                    title: 'MEC with Computer Science',
-                    description: 'Mathematics, Economics, and everyday Commerce integrated with fundamental Computer Science and digital skills.',
-                    careerPaths: ['FinTech', 'Data Analytics', 'BCA / B.Sc. IT', 'Chartered Accountancy', 'Financial Modeling']
-                  }
-                ]
-              },
-              {
-                id: 'cec_cs',
-                title: 'CEC with Computer Science',
-                code: 'CEC-CS',
-                category: 'Commerce',
-                boardsAllowed: ['Telangana Intermediate (TSBIE)', 'CBSE', 'CISCE', 'Andhra Pradesh (BIEAP)', 'Other boards'],
-                yearsAllowed: ['First Year (11th)', 'Second Year (12th)'],
-                specializations: [
-                  {
-                    id: 'cec_cs_spec',
-                    title: 'CEC with Computer Science',
-                    description: 'Civics, Economics, and everyday Commerce integrated with digital literacy, computer hardware, and internet security.',
-                    careerPaths: ['Cyber Law', 'Corporate Governance', 'Digital Business', 'Public Policy Informatics', 'E-Commerce']
                   }
                 ]
               },
