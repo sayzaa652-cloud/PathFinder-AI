@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Compass, GraduationCap, Sparkles, User, BrainCircuit, 
-  FileCheck, Map, Target, Bot, Briefcase, BookOpen, Layers, MessageSquare
+  FileCheck, Map, Target, Bot, Briefcase, BookOpen, Layers, MessageSquare, Gamepad2
 } from 'lucide-react';
 import { StudentProfile } from '../types';
 
@@ -9,6 +9,7 @@ export type NavTab =
   | 'home' 
   | 'quiz' 
   | 'explorer' 
+  | 'games'
   | 'assessments' 
   | 'roadmap' 
   | 'skill-gaps' 
@@ -95,6 +96,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <GraduationCap className="w-3.5 h-3.5" />
               Courses
+            </button>
+
+            <button
+              onClick={() => setActiveTab('games')}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
+                activeTab === 'games'
+                  ? 'bg-[#722F45] text-white shadow-xs'
+                  : 'text-[#2D2226] hover:text-[#722F45] hover:bg-[#D5A3AE]/20'
+              }`}
+            >
+              <Gamepad2 className="w-3.5 h-3.5 text-amber-300" />
+              Games
             </button>
 
             <button
@@ -308,6 +321,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           }`}
         >
           Courses
+        </button>
+        <button
+          onClick={() => setActiveTab('games')}
+          className={`px-2.5 py-1.5 rounded-md whitespace-nowrap cursor-pointer ${
+            activeTab === 'games' ? 'bg-[#722F45] text-white font-bold' : 'text-[#2D2226]'
+          }`}
+        >
+          Games
         </button>
         <button
           onClick={() => setActiveTab('assessments')}

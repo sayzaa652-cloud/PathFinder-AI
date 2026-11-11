@@ -3,15 +3,21 @@ import {
   BookOpen, Search, Sparkles, Filter, Pin, ArrowRight, 
   X, ExternalLink, Layers, Lightbulb, Copy, Check, 
   Bot, Youtube, Globe, Send, RefreshCw,
-  GraduationCap, Network, GitBranch, CheckCircle2, Bookmark
+  GraduationCap, Network, GitBranch, CheckCircle2, Bookmark,
+  Hash, Grid, ShieldCheck, Combine, PieChart, ChevronRight,
+  Zap, ZoomIn, ZoomOut, Maximize2, Info, Compass
 } from 'lucide-react';
 import { 
   OFFICIAL_TGBIE_MATH_NOTES, 
-  MATH_IA_MIND_MAPS,
   MathStickyNote, 
-  ChapterMindMap,
   TGBIE_SUBJECTS_METADATA 
 } from '../data/mathStickyNotesData';
+import { 
+  MATHEMATICS_IA_MIND_MAPS, 
+  getMindMapForSubjectAndChapter,
+  ConceptMindMapData, 
+  MindMapBranch 
+} from '../data/mathMindMapData';
 
 interface MathematicsConceptNotesProps {
   initialPaper?: 'Mathematics IA' | 'Mathematics IB' | 'Mathematics IIA' | 'Mathematics IIB';
@@ -26,311 +32,198 @@ export const MathematicsConceptNotes: React.FC<MathematicsConceptNotesProps> = (
   const [selectedStream, setSelectedStream] = useState<'Intermediate MPC' | 'Intermediate BiPC'>('Intermediate MPC');
   const [selectedYear, setSelectedYear] = useState<'1st Year' | '2nd Year'>('1st Year');
   const [selectedSubject, setSelectedSubject] = useState<string>(initialPaper);
-  const [selectedChapter, setSelectedChapter] = useState<number | 'all'>('all');
-  const [displayMode, setDisplayMode] = useState<'stickyNotes' | 'mindMaps'>('stickyNotes');
+  const [selectedChapterNum, setSelectedChapterNum] = useState<number>(1);
+  const [displayMode, setDisplayMode] = useState<'mindMaps' | 'stickyNotes'>('mindMaps');
+  const [mindMapViewType, setMindMapViewType] = useState<'interactiveCanvas' | 'treeExplorer'>('interactiveCanvas');
+  const [activeBranchId, setActiveBranchId] = useState<string>('ch1_b1');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'withFormula' | 'withExample' | 'pinned'>('all');
-
-  // Pinned Notes State
-  const [pinnedNoteIds, setPinnedNoteIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('pathfinder_pinned_tgbie_math_notes');
-      return saved ? JSON.parse(saved) : ['ia_ch1_01', 'ia_ch2_01', 'ia_ch3_01', 'ia_ch5_01', 'ia_ch7_01'];
-    } catch {
-      return ['ia_ch1_01', 'ia_ch2_01', 'ia_ch3_01', 'ia_ch5_01', 'ia_ch7_01'];
-    }
-  });
-
   const [copiedFormulaId, setCopiedFormulaId] = useState<string | null>(null);
 
-  // AI Learning Support Modal State
-  const [aiTutorNote, setAiTutorNote] = useState<MathStickyNote | null>(null);
-  const [aiChatMessages, setAiChatMessages] = useState<{ sender: 'user' | 'ai'; text: string; timestamp: string }[]>([]);
-  const [aiQuestionInput, setAiQuestionInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-
-  // Pin Toggle
-  const togglePinNote = (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setPinnedNoteIds(prev => {
-      const updated = prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id];
-      try {
-        localStorage.setItem('pathfinder_pinned_tgbie_math_notes', JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
+  // Color theme definitions for mind map branches
+  const COLOR_THEMES: Record<MindMapBranch['colorTheme'], {
+    nodeBg: string;
+    nodeBorder: string;
+    badgeBg: string;
+    stroke: string;
+    text: string;
+    lightBg: string;
+    gradient: string;
+  }> = {
+    amber: {
+      nodeBg: 'bg-[#FEF3C7]',
+      nodeBorder: 'border-[#F59E0B]',
+      badgeBg: 'bg-[#F59E0B]/20 text-[#78350F]',
+      stroke: '#F59E0B',
+      text: 'text-[#78350F]',
+      lightBg: 'bg-[#FFFBEB]',
+      gradient: 'from-[#F59E0B] to-[#D97706]'
+    },
+    emerald: {
+      nodeBg: 'bg-[#D1FAE5]',
+      nodeBorder: 'border-[#10B981]',
+      badgeBg: 'bg-[#10B981]/20 text-[#065F46]',
+      stroke: '#10B981',
+      text: 'text-[#065F46]',
+      lightBg: 'bg-[#ECFDF5]',
+      gradient: 'from-[#10B981] to-[#059669]'
+    },
+    sky: {
+      nodeBg: 'bg-[#E0F2FE]',
+      nodeBorder: 'border-[#0EA5E9]',
+      badgeBg: 'bg-[#0EA5E9]/20 text-[#075985]',
+      stroke: '#0EA5E9',
+      text: 'text-[#075985]',
+      lightBg: 'bg-[#F0F9FF]',
+      gradient: 'from-[#0EA5E9] to-[#0284C7]'
+    },
+    purple: {
+      nodeBg: 'bg-[#F3E8FF]',
+      nodeBorder: 'border-[#A855F7]',
+      badgeBg: 'bg-[#A855F7]/20 text-[#581C87]',
+      stroke: '#A855F7',
+      text: 'text-[#581C87]',
+      lightBg: 'bg-[#FAF5FF]',
+      gradient: 'from-[#A855F7] to-[#7E22CE]'
+    },
+    rose: {
+      nodeBg: 'bg-[#FFE4E6]',
+      nodeBorder: 'border-[#F43F5E]',
+      badgeBg: 'bg-[#F43F5E]/20 text-[#881337]',
+      stroke: '#F43F5E',
+      text: 'text-[#881337]',
+      lightBg: 'bg-[#FFF1F2]',
+      gradient: 'from-[#F43F5E] to-[#BE123C]'
+    },
+    indigo: {
+      nodeBg: 'bg-[#E0E7FF]',
+      nodeBorder: 'border-[#6366F1]',
+      badgeBg: 'bg-[#6366F1]/20 text-[#3730A3]',
+      stroke: '#6366F1',
+      text: 'text-[#3730A3]',
+      lightBg: 'bg-[#EEF2FF]',
+      gradient: 'from-[#6366F1] to-[#4338CA]'
+    },
+    teal: {
+      nodeBg: 'bg-[#CCFBF1]',
+      nodeBorder: 'border-[#14B8A6]',
+      badgeBg: 'bg-[#14B8A6]/20 text-[#134E4A]',
+      stroke: '#14B8A6',
+      text: 'text-[#134E4A]',
+      lightBg: 'bg-[#F0FDF4]',
+      gradient: 'from-[#14B8A6] to-[#0D9488]'
+    },
+    coral: {
+      nodeBg: 'bg-[#FFEDD5]',
+      nodeBorder: 'border-[#F97316]',
+      badgeBg: 'bg-[#F97316]/20 text-[#7C2D12]',
+      stroke: '#F97316',
+      text: 'text-[#7C2D12]',
+      lightBg: 'bg-[#FFF7ED]',
+      gradient: 'from-[#F97316] to-[#EA580C]'
+    }
   };
 
-  // Formula Copy
-  const copyFormula = (formula: string, id: string, e?: React.MouseEvent) => {
+  const renderIconByName = (name: string, className = "w-4 h-4") => {
+    switch (name) {
+      case 'BookOpen': return <BookOpen className={className} />;
+      case 'Hash': return <Hash className={className} />;
+      case 'Grid': return <Grid className={className} />;
+      case 'ShieldCheck': return <ShieldCheck className={className} />;
+      case 'Layers': return <Layers className={className} />;
+      case 'Combine': return <Combine className={className} />;
+      case 'PieChart': return <PieChart className={className} />;
+      case 'Sparkles': return <Sparkles className={className} />;
+      default: return <Lightbulb className={className} />;
+    }
+  };
+
+  // Copy Formula Helper
+  const copyFormulaText = (formula: string, id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     navigator.clipboard?.writeText(formula);
     setCopiedFormulaId(id);
     setTimeout(() => setCopiedFormulaId(null), 2000);
   };
 
-  // Open AI Tutor Modal with Socratic Initial Greeting
-  const handleOpenAiTutor = (note: MathStickyNote, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setAiTutorNote(note);
-    setAiChatMessages([
-      {
-        sender: 'ai',
-        text: `Hello! I am your PathFinder Socratic AI Tutor for **${note.originalConceptName}** (${note.subject}, ${note.chapterName}).\n\nI can explain this concept simply, give you problem-solving hints, or quiz you with a short practice question. What would you like to explore?`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
-    setAiQuestionInput('');
-  };
+  // Current Active Mind Map Data
+  const currentMindMap: ConceptMindMapData | null = useMemo(() => {
+    return getMindMapForSubjectAndChapter(selectedSubject, selectedChapterNum);
+  }, [selectedSubject, selectedChapterNum]);
 
-  // Send AI Tutor Question
-  const handleSendAiQuestion = async (customPrompt?: string) => {
-    const questionText = (customPrompt || aiQuestionInput).trim();
-    if (!questionText || !aiTutorNote || aiLoading) return;
-
-    const userMsg = {
-      sender: 'user' as const,
-      text: questionText,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setAiChatMessages(prev => [...prev, userMsg]);
-    setAiQuestionInput('');
-    setAiLoading(true);
-
-    try {
-      const res = await fetch('/api/mentor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topicName: `${aiTutorNote.originalConceptName} (${aiTutorNote.chapterName})`,
-          subject: `${aiTutorNote.subject} (${aiTutorNote.year}, Telangana Board Intermediate)`,
-          userQuestion: `Regarding concept "${aiTutorNote.originalConceptName}" with meaning "${aiTutorNote.whatIsIt}" and formula "${aiTutorNote.formula || 'None'}": ${questionText}. Please follow Socratic principles: explain in simple English, give hints before providing complete answers, do not invent syllabus topics, and encourage me to verify with my learning resources.`,
-          conversationHistory: aiChatMessages.map(m => ({
-            sender: m.sender === 'ai' ? 'ai_mentor' : 'student',
-            text: m.text
-          }))
-        })
-      });
-
-      const data = await res.json();
-      const reply = data.reply || 'Here is a hint: examine the standard syllabus rule and write down the given terms first!';
-
-      setAiChatMessages(prev => [
-        ...prev,
-        {
-          sender: 'ai',
-          text: reply,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    } catch {
-      setAiChatMessages(prev => [
-        ...prev,
-        {
-          sender: 'ai',
-          text: `Here is a Socratic hint for **${aiTutorNote.originalConceptName}**: Break the problem down into given variables and what you need to find. Remember: \`${aiTutorNote.rememberTip}\`. Also verify with the provided YouTube and TGBIE resources!`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // Available subjects for selected stream & year
-  const availableSubjects = useMemo(() => {
-    return TGBIE_SUBJECTS_METADATA[selectedStream]?.[selectedYear] || [];
-  }, [selectedStream, selectedYear]);
-
-  // Adjust selectedSubject when stream or year changes
+  // Set default active branch when chapter changes
   React.useEffect(() => {
-    if (selectedStream === 'Intermediate MPC') {
-      if (selectedYear === '1st Year' && !['Mathematics IA', 'Mathematics IB'].includes(selectedSubject)) {
-        setSelectedSubject('Mathematics IA');
-      } else if (selectedYear === '2nd Year' && !['Mathematics IIA', 'Mathematics IIB'].includes(selectedSubject)) {
-        setSelectedSubject('Mathematics IIA');
-      }
+    if (currentMindMap && currentMindMap.branches.length > 0) {
+      setActiveBranchId(currentMindMap.branches[0].id);
     }
-    setSelectedChapter('all');
-  }, [selectedStream, selectedYear]);
+  }, [selectedChapterNum, selectedSubject]);
 
-  // Filter notes based on selection
-  const filteredNotes = useMemo(() => {
+  // Selected Active Branch Detail
+  const activeBranch = useMemo(() => {
+    if (!currentMindMap) return null;
+    return currentMindMap.branches.find(b => b.id === activeBranchId) || currentMindMap.branches[0];
+  }, [currentMindMap, activeBranchId]);
+
+  // Filtered Sticky Notes (for fallback sticky notes tab)
+  const filteredStickyNotes = useMemo(() => {
     return OFFICIAL_TGBIE_MATH_NOTES.filter(note => {
-      // Must match stream, year, subject
       if (note.stream !== selectedStream) return false;
       if (note.year !== selectedYear) return false;
       if (note.subject !== selectedSubject) return false;
-
-      // Chapter filter
-      if (selectedChapter !== 'all' && note.chapterNumber !== selectedChapter) return false;
-
-      // Pinned filter
-      if (filterType === 'pinned' && !pinnedNoteIds.includes(note.id)) return false;
-
-      // Formula filter
-      if (filterType === 'withFormula' && !note.formula) return false;
-
-      // Example filter
-      if (filterType === 'withExample' && !note.example) return false;
-
-      // Search query
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchName = note.originalConceptName.toLowerCase().includes(query);
-        const matchMeaning = note.whatIsIt.toLowerCase().includes(query);
-        const matchFormula = note.formula?.toLowerCase().includes(query);
-        const matchChapter = note.chapterName.toLowerCase().includes(query);
-        const matchEx = note.example?.toLowerCase().includes(query);
-        const matchTip = note.rememberTip.toLowerCase().includes(query);
-        if (!matchName && !matchMeaning && !matchFormula && !matchChapter && !matchEx && !matchTip) {
-          return false;
-        }
+        const q = searchQuery.toLowerCase();
+        return (
+          note.originalConceptName.toLowerCase().includes(q) ||
+          note.whatIsIt.toLowerCase().includes(q) ||
+          (note.formula && note.formula.toLowerCase().includes(q))
+        );
       }
-
       return true;
     });
-  }, [selectedStream, selectedYear, selectedSubject, selectedChapter, searchQuery, filterType, pinnedNoteIds]);
+  }, [selectedStream, selectedYear, selectedSubject, searchQuery]);
 
-  // Distinct chapters for active subject
-  const subjectChapters = useMemo(() => {
-    const chapterMap = new Map<number, string>();
-    OFFICIAL_TGBIE_MATH_NOTES.forEach(n => {
-      if (n.stream === selectedStream && n.year === selectedYear && n.subject === selectedSubject) {
-        if (!chapterMap.has(n.chapterNumber)) {
-          chapterMap.set(n.chapterNumber, n.chapterName);
-        }
-      }
-    });
-
-    // If Mathematics IA, ensure all 12 chapters are present in the list
-    if (selectedSubject === 'Mathematics IA') {
-      const iaChapters: [number, string][] = [
-        [1, 'Sets and Relations'],
-        [2, 'Functions'],
-        [3, 'Sequences and Series'],
-        [4, 'Mathematical Induction'],
-        [5, 'Matrices'],
-        [6, 'Addition of Vectors'],
-        [7, 'Product of Vectors'],
-        [8, 'Trigonometric Ratios and Transformations'],
-        [9, 'Trigonometric Equations'],
-        [10, 'Inverse Trigonometric Functions'],
-        [11, 'Hyperbolic Functions'],
-        [12, 'Properties of Triangles']
-      ];
-      iaChapters.forEach(([num, name]) => {
-        if (!chapterMap.has(num)) chapterMap.set(num, name);
-      });
-    }
-
-    return Array.from(chapterMap.entries())
-      .map(([num, name]) => ({ num, name }))
-      .sort((a, b) => a.num - b.num);
-  }, [selectedStream, selectedYear, selectedSubject]);
-
-  // Color schemes for digital sticky notes
-  const colorStyles: Record<MathStickyNote['stickyColor'], {
-    bg: string;
-    border: string;
-    badge: string;
-    accent: string;
-  }> = {
-    yellow: {
-      bg: 'bg-[#FEF9C3] hover:bg-[#FEF08A]/90',
-      border: 'border-[#FDE047]/90',
-      badge: 'bg-[#FACC15]/40 text-[#713F12]',
-      accent: 'text-[#854D0E]'
-    },
-    mint: {
-      bg: 'bg-[#DCFCE7] hover:bg-[#BBF7D0]/90',
-      border: 'border-[#86EFAC]/90',
-      badge: 'bg-[#86EFAC]/40 text-[#14532D]',
-      accent: 'text-[#166534]'
-    },
-    blue: {
-      bg: 'bg-[#E0F2FE] hover:bg-[#BAE6FD]/90',
-      border: 'border-[#7DD3FC]/90',
-      badge: 'bg-[#7DD3FC]/40 text-[#0C4A6E]',
-      accent: 'text-[#075985]'
-    },
-    lavender: {
-      bg: 'bg-[#F3E8FF] hover:bg-[#E9D5FF]/90',
-      border: 'border-[#D8B4FE]/90',
-      badge: 'bg-[#D8B4FE]/40 text-[#581C87]',
-      accent: 'text-[#6B21A8]'
-    },
-    peach: {
-      bg: 'bg-[#FFE4E6] hover:bg-[#FECDD3]/90',
-      border: 'border-[#FDA4AF]/90',
-      badge: 'bg-[#FDA4AF]/40 text-[#881337]',
-      accent: 'text-[#9F1239]'
-    },
-    lime: {
-      bg: 'bg-[#ECFCCB] hover:bg-[#D9F99D]/90',
-      border: 'border-[#BEF264]/90',
-      badge: 'bg-[#BEF264]/40 text-[#365314]',
-      accent: 'text-[#3F6212]'
-    },
-    amber: {
-      bg: 'bg-[#FEF3C7] hover:bg-[#FDE68A]/90',
-      border: 'border-[#FCD34D]/90',
-      badge: 'bg-[#FCD34D]/40 text-[#78350F]',
-      accent: 'text-[#92400E]'
-    }
-  };
+  // List of all 12 Mathematics IA chapters
+  const iaChapters = [
+    { num: 1, name: 'Sets and Relations' },
+    { num: 2, name: 'Functions' },
+    { num: 3, name: 'Sequences and Series' },
+    { num: 4, name: 'Mathematical Induction' },
+    { num: 5, name: 'Matrices' },
+    { num: 6, name: 'Addition of Vectors' },
+    { num: 7, name: 'Product of Vectors' },
+    { num: 8, name: 'Trigonometric Transformations' },
+    { num: 9, name: 'Trigonometric Equations' },
+    { num: 10, name: 'Inverse Trig Functions' },
+    { num: 11, name: 'Hyperbolic Functions' },
+    { num: 12, name: 'Properties of Triangles' }
+  ];
 
   return (
     <div className="space-y-6">
 
-      {/* Official Syllabus Banner */}
+      {/* Top Header Banner */}
       <div className="p-6 sm:p-7 rounded-3xl bg-linear-to-r from-[#FAF4EE] via-[#FFF9F2] to-[#FAF4EE] border-2 border-[#D5A3AE]/70 shadow-xs">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-          <div className="space-y-2 max-w-2xl">
+          <div className="space-y-2 max-w-3xl">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold uppercase tracking-wider text-[#722F45] bg-[#D5A3AE]/30 px-3 py-1 rounded-full border border-[#D5A3AE]">
-                Telangana Intermediate 1st Year (2026–27)
+                Telangana Intermediate (TGBIE 2026–27)
               </span>
-              <a
-                href="https://tgbie.cgg.gov.in/"
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-bold text-[#722F45] bg-white px-2.5 py-1 rounded-full border border-[#D5A3AE]/60 hover:bg-[#D5A3AE]/20 transition-colors flex items-center gap-1.5"
-                title="Primary official syllabus reference"
-              >
-                <span>tgbie.cgg.gov.in</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-              <span className="text-xs font-bold text-emerald-950 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
-                Mathematics IA — Complete 12 Chapters
+              <span className="text-xs font-bold text-amber-950 bg-amber-100 px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                Premium Visual Mind Maps
               </span>
             </div>
             
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#722F45] font-serif-accent">
-              Mathematics IA Concept Notes &amp; Mind Maps
+              Mathematics IA Visual Mind Maps &amp; Concept Explorer
             </h2>
             <p className="text-xs text-[#5A454C] leading-relaxed">
-              Covering all 12 official TGBIE chapters for 1st Year Mathematics IA: <strong>Sets &amp; Relations, Functions, Sequences &amp; Series, Mathematical Induction, Matrices, Addition of Vectors, Product of Vectors, Trigonometric Transformations, Trigonometric Equations, Inverse Trig Functions, Hyperbolic Functions, and Properties of Triangles.</strong>
+              Interactive visual node networks connecting every main concept in <strong>Mathematics IA</strong> with simple explanations, key points, formulas, step-by-step examples, and real-life applications.
             </p>
           </div>
 
-          {/* View Mode Switcher: Sticky Notes vs Chapter Mind Maps */}
+          {/* Display Mode Toggle */}
           <div className="flex items-center p-1.5 rounded-2xl bg-[#E8D5C4]/80 border-2 border-[#D5A3AE] shadow-inner shrink-0">
-            <button
-              onClick={() => setDisplayMode('stickyNotes')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                displayMode === 'stickyNotes'
-                  ? 'bg-[#722F45] text-white shadow-md'
-                  : 'text-[#2D2226] hover:text-[#722F45] hover:bg-white/40'
-              }`}
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Digital Sticky Notes</span>
-            </button>
-
             <button
               onClick={() => setDisplayMode('mindMaps')}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
@@ -340,18 +233,29 @@ export const MathematicsConceptNotes: React.FC<MathematicsConceptNotesProps> = (
               }`}
             >
               <GitBranch className="w-4 h-4 text-amber-300" />
-              <span>Chapter Mind Maps</span>
+              <span>Visual Mind Maps</span>
+            </button>
+
+            <button
+              onClick={() => setDisplayMode('stickyNotes')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                displayMode === 'stickyNotes'
+                  ? 'bg-[#722F45] text-white shadow-md'
+                  : 'text-[#2D2226] hover:text-[#722F45] hover:bg-white/40'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Sticky Notes</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Navigation Bar: Stream, Year, Subject & Chapter Selector */}
+      {/* Navigation Toolbar */}
       <div className="p-4 rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/60 space-y-4 shadow-xs">
         
-        {/* Row 1: Academic Stream & Year Switcher */}
+        {/* Stream & Subject Pills */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white border border-[#D5A3AE]/50 shadow-2xs">
               {(['Intermediate MPC', 'Intermediate BiPC'] as const).map(st => (
@@ -386,535 +290,613 @@ export const MathematicsConceptNotes: React.FC<MathematicsConceptNotesProps> = (
             </div>
           </div>
 
-          {/* Subjects Pills */}
+          {/* Subject Pills */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11px] font-bold text-[#722F45] mr-1">Subject:</span>
-            {availableSubjects.map(subj => {
+            {['Mathematics IA', 'Mathematics IB', 'Physics', 'Chemistry'].map(subj => {
               const isSelected = selectedSubject === subj;
-              const isMath = subj.startsWith('Mathematics');
               return (
                 <button
                   key={subj}
-                  onClick={() => {
-                    if (isMath) setSelectedSubject(subj);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  onClick={() => setSelectedSubject(subj)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-[#722F45] text-white shadow-xs cursor-pointer'
-                      : isMath
-                      ? 'bg-white border border-[#D5A3AE]/60 text-[#2D2226] hover:bg-[#D5A3AE]/20 cursor-pointer'
-                      : 'bg-gray-100/70 border border-gray-200 text-gray-500 cursor-not-allowed opacity-75'
+                      ? 'bg-[#722F45] text-white shadow-xs ring-1 ring-[#722F45]'
+                      : 'bg-white border border-[#D5A3AE]/60 text-[#2D2226] hover:bg-[#D5A3AE]/20'
                   }`}
                 >
-                  <span>{subj}</span>
+                  {subj}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Row 2: Search Bar & Quick Filters (only for Sticky Notes mode) */}
-        {displayMode === 'stickyNotes' && (
-          <div className="pt-2 border-t border-[#D5A3AE]/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-[#722F45] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder={`Search ${selectedSubject} concepts by keyword, formula, tip, or topic...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white border border-[#D5A3AE]/60 text-xs text-[#2D2226] focus:outline-none focus:ring-2 focus:ring-[#722F45]/30 placeholder:text-[#6C555C]"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+        {/* Chapter Selection Carousel (Only for Mathematics IA) */}
+        {selectedSubject === 'Mathematics IA' && (
+          <div className="pt-2 border-t border-[#D5A3AE]/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-[#722F45] flex items-center gap-1">
+                <Compass className="w-3.5 h-3.5" />
+                Select Chapter (All 12 TGBIE Mathematics IA Chapters):
+              </span>
+              <span className="text-[10px] text-[#6C555C] font-semibold">
+                Showing Chapter {selectedChapterNum} of 12
+              </span>
             </div>
 
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                onClick={() => setFilterType('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  filterType === 'all'
-                    ? 'bg-[#722F45] text-white shadow-xs'
-                    : 'bg-white border border-[#D5A3AE]/50 text-[#5A454C] hover:bg-[#D5A3AE]/20'
-                }`}
-              >
-                All ({filteredNotes.length})
-              </button>
-
-              <button
-                onClick={() => setFilterType('withFormula')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  filterType === 'withFormula'
-                    ? 'bg-[#722F45] text-white shadow-xs'
-                    : 'bg-white border border-[#D5A3AE]/50 text-[#5A454C] hover:bg-[#D5A3AE]/20'
-                }`}
-              >
-                Formulas
-              </button>
-
-              <button
-                onClick={() => setFilterType('withExample')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  filterType === 'withExample'
-                    ? 'bg-[#722F45] text-white shadow-xs'
-                    : 'bg-white border border-[#D5A3AE]/50 text-[#5A454C] hover:bg-[#D5A3AE]/20'
-                }`}
-              >
-                Examples
-              </button>
-
-              <button
-                onClick={() => setFilterType('pinned')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                  filterType === 'pinned'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-white border border-[#D5A3AE]/50 text-[#5A454C] hover:bg-[#D5A3AE]/20'
-                }`}
-              >
-                <Pin className="w-3 h-3 fill-current" />
-                <span>Pinned ({pinnedNoteIds.length})</span>
-              </button>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+              {iaChapters.map(ch => {
+                const isSelected = selectedChapterNum === ch.num;
+                return (
+                  <button
+                    key={ch.num}
+                    onClick={() => setSelectedChapterNum(ch.num)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-[#722F45] text-white shadow-xs ring-2 ring-[#722F45]/40'
+                        : 'bg-white border border-[#D5A3AE]/50 text-[#2D2226] hover:bg-[#D5A3AE]/20'
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-[#D5A3AE]/30 text-[#722F45] text-[10px] font-extrabold flex items-center justify-center shrink-0">
+                      {ch.num}
+                    </span>
+                    <span className="truncate">{ch.name}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
-        )}
-
-        {/* Row 3: Chapter Carousel Pills in Exact 12-Chapter Order */}
-        {subjectChapters.length > 0 && (
-          <div className="pt-2 border-t border-[#D5A3AE]/30 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-            <span className="text-[11px] font-bold text-[#722F45] shrink-0 mr-1 flex items-center gap-1">
-              <Filter className="w-3 h-3" />
-              Chapters:
-            </span>
-
-            <button
-              onClick={() => setSelectedChapter('all')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-colors cursor-pointer ${
-                selectedChapter === 'all'
-                  ? 'bg-[#722F45] text-white'
-                  : 'bg-white/80 border border-[#D5A3AE]/40 text-[#2D2226] hover:bg-[#D5A3AE]/20'
-              }`}
-            >
-              All 12 Chapters
-            </button>
-
-            {subjectChapters.map(ch => {
-              const isSelected = selectedChapter === ch.num;
-              return (
-                <button
-                  key={ch.num}
-                  onClick={() => setSelectedChapter(isSelected ? 'all' : ch.num)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#722F45] text-white shadow-xs'
-                      : 'bg-white/80 border border-[#D5A3AE]/40 text-[#2D2226] hover:bg-[#D5A3AE]/20'
-                  }`}
-                >
-                  Ch {ch.num}: {ch.name}
-                </button>
-              );
-            })}
           </div>
         )}
 
       </div>
 
       {/* ========================================================================= */}
-      {/* MODE 1: DIGITAL STICKY NOTES DISPLAY                                       */}
+      {/* DISPLAY MODE 1: VISUAL MIND MAPS                                          */}
       {/* ========================================================================= */}
-      {displayMode === 'stickyNotes' && (
+      {displayMode === 'mindMaps' && (
         <>
-          {filteredNotes.length === 0 ? (
-            <div className="p-12 text-center rounded-3xl bg-[#FAF4EE] border border-[#D5A3AE]/50 space-y-3">
-              <BookOpen className="w-10 h-10 text-[#8C4057] mx-auto opacity-60" />
-              <h3 className="font-bold text-base text-[#722F45]">No concept notes found</h3>
-              <p className="text-xs text-[#6C555C]">
-                Try adjusting your search query or reset the filter selection above.
+          {selectedSubject !== 'Mathematics IA' ? (
+            <div className="p-10 rounded-3xl bg-[#FAF4EE] border-2 border-[#D5A3AE]/60 text-center space-y-3">
+              <GitBranch className="w-10 h-10 text-[#8C4057] mx-auto opacity-70" />
+              <h3 className="font-extrabold text-lg text-[#722F45]">
+                {selectedSubject} Visual Mind Maps Coming Soon
+              </h3>
+              <p className="text-xs text-[#6C555C] max-w-md mx-auto leading-relaxed">
+                We are currently building the complete Mathematics IA visual mind map series first. Once approved, the exact same premium connected mind map design will be applied to <strong>{selectedSubject}</strong>!
               </p>
               <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedChapter('all');
-                  setFilterType('all');
-                }}
-                className="px-4 py-2 rounded-xl bg-[#722F45] text-white text-xs font-bold hover:bg-[#5C2436] cursor-pointer"
+                onClick={() => setSelectedSubject('Mathematics IA')}
+                className="px-5 py-2.5 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-xs font-bold cursor-pointer shadow-xs"
               >
-                Reset Search Filters
+                Explore Mathematics IA Mind Maps
               </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredNotes.map((note) => {
-                const isPinned = pinnedNoteIds.includes(note.id);
-                const theme = colorStyles[note.stickyColor];
+          ) : currentMindMap && (
+            <div className="space-y-6">
 
-                return (
-                  <div
-                    key={note.id}
-                    className={`relative group p-6 rounded-2xl border-2 transition-all duration-300 shadow-md hover:shadow-2xl hover:-translate-y-1.5 flex flex-col justify-between ${theme.bg} ${theme.border} ${note.rotation} hover:rotate-0`}
+              {/* Mind Map Controls Header */}
+              <div className="p-4 rounded-2xl bg-white border border-[#D5A3AE]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-white bg-[#722F45] px-2.5 py-0.5 rounded">
+                      Chapter {currentMindMap.chapterNumber}
+                    </span>
+                    <h3 className="font-extrabold text-base text-[#722F45]">
+                      {currentMindMap.conceptHeading}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-[#6C555C] mt-0.5">
+                    {currentMindMap.tagline} &bull; <strong>{currentMindMap.branches.length} Connected Branches</strong>
+                  </p>
+                </div>
+
+                {/* Mind Map Sub-View Switcher: Interactive Canvas vs Tree Explorer */}
+                <div className="flex items-center p-1 rounded-xl bg-[#FAF4EE] border border-[#D5A3AE]/50 shrink-0">
+                  <button
+                    onClick={() => setMindMapViewType('interactiveCanvas')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      mindMapViewType === 'interactiveCanvas'
+                        ? 'bg-[#722F45] text-white shadow-2xs'
+                        : 'text-[#5A454C] hover:text-[#722F45]'
+                    }`}
                   >
-                    {/* Top Pin Graphic */}
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-20 h-6 rounded-xs opacity-85 shadow-2xs backdrop-blur-xs flex items-center justify-center border transition-opacity group-hover:opacity-100 z-10 select-none bg-amber-50/90 border-amber-200/80">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-xs border border-white" />
-                    </div>
+                    <Network className="w-3.5 h-3.5" />
+                    <span>Radial Network</span>
+                  </button>
 
-                    {/* Top Action Bar: Chapter Tag + Pin Button */}
-                    <div className="flex items-center justify-between gap-2 mb-3 pt-1">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md ${theme.badge}`}>
-                        Ch {note.chapterNumber}: {note.chapterName}
-                      </span>
+                  <button
+                    onClick={() => setMindMapViewType('treeExplorer')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      mindMapViewType === 'treeExplorer'
+                        ? 'bg-[#722F45] text-white shadow-2xs'
+                        : 'text-[#5A454C] hover:text-[#722F45]'
+                    }`}
+                  >
+                    <GitBranch className="w-3.5 h-3.5" />
+                    <span>Tree Explorer</span>
+                  </button>
+                </div>
+              </div>
 
-                      <button
-                        onClick={(e) => togglePinNote(note.id, e)}
-                        title={isPinned ? 'Unpin Note' : 'Pin Note to Top'}
-                        className={`p-1.5 rounded-lg transition-transform hover:scale-110 cursor-pointer ${
-                          isPinned ? 'text-amber-700 bg-amber-200/60' : 'text-gray-400 hover:text-gray-700 bg-black/5'
-                        }`}
-                      >
-                        <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
-                      </button>
-                    </div>
+              {/* ===================================================================== */}
+              {/* SUB-VIEW 1: INTERACTIVE RADIAL CANVAS WITH CONNECTED SVG BEZIER LINES   */}
+              {/* ===================================================================== */}
+              {mindMapViewType === 'interactiveCanvas' && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* Left Column: Visual Connected Mind Map Canvas (7 Cols) */}
+                  <div className="lg:col-span-7 bg-linear-to-br from-[#FAF4EE] via-[#FFFDF9] to-[#FAF4EE] p-5 sm:p-7 rounded-3xl border-2 border-[#D5A3AE]/70 shadow-md relative min-h-[580px] flex flex-col justify-between overflow-hidden">
+                    
+                    {/* SVG Connector Lines Container */}
+                    <div className="relative w-full h-[520px] flex items-center justify-center">
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
+                        <defs>
+                          <radialGradient id="centralGlow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stopColor="#722F45" stopOpacity="0.3" />
+                            <stop offset="100%" stopColor="#722F45" stopOpacity="0" />
+                          </radialGradient>
+                        </defs>
 
-                    {/* Main Content Area */}
-                    <div className="space-y-3">
-                      {/* 1. Original Concept Name */}
-                      <h3 className="text-base font-extrabold text-[#2D2226] leading-snug group-hover:text-[#722F45] transition-colors">
-                        {note.originalConceptName}
-                      </h3>
+                        {/* Bezier Curves connecting Central Node to each Branch Node */}
+                        {currentMindMap.branches.map((branch, idx) => {
+                          const total = currentMindMap.branches.length;
+                          const angle = (idx * (2 * Math.PI / total)) - (Math.PI / 2);
+                          // Canvas dimensions: assume center at (50%, 50%)
+                          // Radius: 38%
+                          const radiusX = 38; 
+                          const radiusY = 36;
+                          const cx = 50;
+                          const cy = 50;
+                          const bx = cx + radiusX * Math.cos(angle);
+                          const by = cy + radiusY * Math.sin(angle);
 
-                      {/* 2. What is it? (1-2 sentences) */}
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] block">
-                          What is it?
-                        </span>
-                        <p className="text-xs text-[#3D2C33] leading-relaxed font-medium">
-                          {note.whatIsIt}
-                        </p>
-                      </div>
+                          // Control points for smooth organic curve
+                          const cp1x = cx + (radiusX * 0.45) * Math.cos(angle);
+                          const cp1y = cy + (radiusY * 0.45) * Math.sin(angle);
+                          const cp2x = bx - (radiusX * 0.2) * Math.cos(angle);
+                          const cp2y = by - (radiusY * 0.2) * Math.sin(angle);
 
-                      {/* 3. Important Formula (if applicable) */}
-                      {note.formula && (
-                        <div className="p-3 rounded-xl bg-white/95 border border-black/10 shadow-xs space-y-1">
-                          <div className="flex items-center justify-between text-[10px] font-bold text-[#722F45] uppercase tracking-wider">
-                            <span className="flex items-center gap-1">
-                              <Sparkles className="w-3 h-3 text-amber-600" />
-                              Important Formula
-                            </span>
-                            <button
-                              onClick={(e) => copyFormula(note.formula || '', note.id, e)}
-                              title="Copy Formula"
-                              className="text-gray-400 hover:text-[#722F45] cursor-pointer p-0.5 rounded"
-                            >
-                              {copiedFormulaId === note.id ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
+                          const isActive = activeBranch?.id === branch.id;
+                          const theme = COLOR_THEMES[branch.colorTheme];
+
+                          return (
+                            <g key={branch.id}>
+                              <path
+                                d={`M ${cx}% ${cy}% C ${cp1x}% ${cp1y}%, ${cp2x}% ${cp2y}%, ${bx}% ${by}%`}
+                                fill="none"
+                                stroke={isActive ? theme.stroke : '#D5A3AE'}
+                                strokeWidth={isActive ? '3.5' : '2'}
+                                strokeDasharray={isActive ? 'none' : '4 3'}
+                                className="transition-all duration-300"
+                              />
+                              {isActive && (
+                                <circle
+                                  cx={`${bx}%`}
+                                  cy={`${by}%`}
+                                  r="6"
+                                  fill={theme.stroke}
+                                  className="animate-ping opacity-75"
+                                />
                               )}
-                            </button>
-                          </div>
-                          <div className="font-mono font-bold text-xs text-[#722F45] leading-relaxed break-words">
-                            {note.formula}
-                          </div>
-                        </div>
-                      )}
+                            </g>
+                          );
+                        })}
+                      </svg>
 
-                      {/* 4. One Short Example (if useful) */}
-                      {note.example && (
-                        <div className="p-2.5 rounded-xl bg-black/5 border border-black/5 text-[11px] text-[#2D2226] leading-relaxed">
-                          <strong className="text-[#722F45] font-bold">Example: </strong>
-                          <span>{note.example}</span>
-                        </div>
-                      )}
-
-                      {/* 5. Short Remember Tip */}
-                      <div className="p-2.5 rounded-xl bg-amber-100/80 border border-amber-300/80 text-[11px] text-amber-950 flex items-start gap-1.5">
-                        <Lightbulb className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
-                        <div>
-                          <strong className="font-bold">Remember: </strong>
-                          <span>{note.rememberTip}</span>
+                      {/* Central Concept Node */}
+                      <div className="absolute z-10 text-center flex flex-col items-center justify-center">
+                        <div className="relative p-5 sm:p-6 rounded-3xl bg-linear-to-br from-[#722F45] to-[#4A1D2D] text-white shadow-2xl border-4 border-amber-300/80 max-w-[210px] transform hover:scale-105 transition-transform duration-300">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-400 text-[#722F45] flex items-center justify-center mx-auto mb-2 shadow-md font-bold">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-300 bg-black/20 px-2 py-0.5 rounded-full block mb-1">
+                            Chapter {currentMindMap.chapterNumber}
+                          </span>
+                          <h4 className="font-extrabold text-sm sm:text-base leading-tight font-serif-accent">
+                            {currentMindMap.chapterName}
+                          </h4>
+                          <span className="text-[9px] text-white/80 mt-1 block font-medium">
+                            {currentMindMap.branches.length} Core Concepts
+                          </span>
                         </div>
                       </div>
 
-                      {/* Connected Learning Resources */}
-                      {note.resources && note.resources.length > 0 && (
-                        <div className="pt-2 border-t border-black/10 space-y-1.5">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#6C555C] block">
-                            Learning Resources:
-                          </span>
-                          <div className="flex flex-col gap-1">
-                            {note.resources.map((res, rIdx) => (
-                              <a
-                                key={rIdx}
-                                href={res.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center justify-between p-1.5 rounded-lg bg-white/80 hover:bg-white border border-black/5 text-[11px] font-semibold text-[#722F45] transition-colors"
-                              >
-                                <span className="flex items-center gap-1.5 truncate">
-                                  {res.type === 'youtube' ? (
-                                    <Youtube className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                                  ) : (
-                                    <Globe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                  )}
-                                  <span className="truncate">{res.title}</span>
+                      {/* Radial Branch Nodes */}
+                      {currentMindMap.branches.map((branch, idx) => {
+                        const total = currentMindMap.branches.length;
+                        const angle = (idx * (2 * Math.PI / total)) - (Math.PI / 2);
+                        const radiusX = 38; 
+                        const radiusY = 36;
+                        const leftPct = 50 + radiusX * Math.cos(angle);
+                        const topPct = 50 + radiusY * Math.sin(angle);
+
+                        const isActive = activeBranch?.id === branch.id;
+                        const theme = COLOR_THEMES[branch.colorTheme];
+
+                        return (
+                          <div
+                            key={branch.id}
+                            style={{
+                              left: `${leftPct}%`,
+                              top: `${topPct}%`,
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                            onClick={() => setActiveBranchId(branch.id)}
+                            className={`absolute z-20 cursor-pointer transition-all duration-300 group ${
+                              isActive
+                                ? 'scale-110 ring-4 ring-amber-400 shadow-xl'
+                                : 'hover:scale-105 opacity-90 hover:opacity-100 shadow-md'
+                            }`}
+                          >
+                            <div className={`p-2.5 sm:p-3 rounded-2xl border-2 flex items-center gap-2 max-w-[170px] ${theme.nodeBg} ${theme.nodeBorder}`}>
+                              <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 text-white bg-linear-to-r ${theme.gradient} shadow-2xs`}>
+                                {renderIconByName(branch.iconName, "w-3.5 h-3.5")}
+                              </div>
+                              <div className="overflow-hidden text-left">
+                                <span className="text-[9px] font-extrabold uppercase tracking-wider block text-gray-500">
+                                  Branch {idx + 1}
                                 </span>
-                                <ExternalLink className="w-3 h-3 shrink-0 opacity-60 ml-1" />
-                              </a>
-                            ))}
+                                <h5 className={`font-bold text-[11px] leading-tight truncate ${theme.text}`}>
+                                  {branch.title}
+                                </h5>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })}
+
                     </div>
 
-                    {/* AI Learning Support Button */}
-                    <div className="mt-4 pt-3 border-t border-black/10 flex items-center justify-between">
-                      <span className="text-[10px] text-[#6C555C] font-semibold">
-                        {note.subject}
+                    {/* Quick Guidance Footer */}
+                    <div className="pt-3 border-t border-[#D5A3AE]/40 flex items-center justify-between text-[11px] text-[#6C555C]">
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-600" />
+                        Click any branch node to inspect detailed concept properties.
                       </span>
-                      <button
-                        onClick={(e) => handleOpenAiTutor(note, e)}
-                        className="px-3 py-1.5 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-[11px] font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Bot className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Ask AI Tutor</span>
-                      </button>
+                      <span className="font-bold text-[#722F45]">
+                        Sample: Chapter {currentMindMap.chapterNumber} Mind Map
+                      </span>
                     </div>
 
                   </div>
-                );
-              })}
+
+                  {/* Right Column: Active Branch Inspector / Floating Card (5 Cols) */}
+                  <div className="lg:col-span-5">
+                    {activeBranch ? (
+                      <div className={`p-6 rounded-3xl border-2 shadow-xl space-y-4 transition-all ${COLOR_THEMES[activeBranch.colorTheme].lightBg} ${COLOR_THEMES[activeBranch.colorTheme].nodeBorder}`}>
+                        
+                        {/* Branch Title & Icon Header */}
+                        <div className="flex items-start justify-between gap-3 border-b border-black/10 pb-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white bg-linear-to-r ${COLOR_THEMES[activeBranch.colorTheme].gradient} shadow-md`}>
+                              {renderIconByName(activeBranch.iconName, "w-5 h-5")}
+                            </div>
+                            <div>
+                              <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded ${COLOR_THEMES[activeBranch.colorTheme].badgeBg}`}>
+                                Concept Branch &bull; {activeBranch.title}
+                              </span>
+                              <h3 className="font-extrabold text-base text-[#2D2226] leading-tight mt-1">
+                                {activeBranch.title}
+                              </h3>
+                            </div>
+                          </div>
+
+                          <span className="text-xs font-bold text-[#722F45] bg-white px-2 py-1 rounded-lg border border-black/10">
+                            Ch {currentMindMap.chapterNumber}
+                          </span>
+                        </div>
+
+                        {/* 1. What does it mean? */}
+                        <div className="space-y-1.5 p-3.5 rounded-2xl bg-white/90 border border-black/5 shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] flex items-center gap-1">
+                            <BookOpen className="w-3.5 h-3.5 text-[#8C4057]" />
+                            1. What Does It Mean? (Simple Explanation)
+                          </span>
+                          <p className="text-xs text-[#2D2226] leading-relaxed font-medium">
+                            {activeBranch.whatDoesItMean}
+                          </p>
+                        </div>
+
+                        {/* 2. Exact Textbook Definition */}
+                        {activeBranch.exactDefinition && (
+                          <div className="space-y-1.5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/50 shadow-2xs">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1">
+                              <GraduationCap className="w-3.5 h-3.5 text-amber-700" />
+                              2. Exact Telangana Textbook Definition (Section 3.3)
+                            </span>
+                            <blockquote className="text-xs font-serif text-[#2D2226] italic bg-white/80 p-2.5 rounded-xl border border-amber-300/60 leading-relaxed">
+                              "{activeBranch.exactDefinition}"
+                            </blockquote>
+                          </div>
+                        )}
+
+                        {/* 3. Meaning of Mathematical Symbols */}
+                        {activeBranch.symbolMeanings && activeBranch.symbolMeanings.length > 0 && (
+                          <div className="space-y-2 p-3.5 rounded-2xl bg-white/90 border border-black/5 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] flex items-center gap-1">
+                              <Info className="w-3.5 h-3.5 text-cyan-600" />
+                              3. Meaning of Mathematical Symbols
+                            </span>
+                            <div className="grid grid-cols-1 gap-1.5">
+                              {activeBranch.symbolMeanings.map((sym, sIdx) => (
+                                <div key={sIdx} className="text-xs text-[#2D2226] bg-[#FAF4EE] p-2 rounded-xl border border-[#D5A3AE]/30 flex items-start gap-2">
+                                  <span className="font-mono font-bold text-[#722F45] shrink-0">&bull;</span>
+                                  <span>{sym}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 4. Important Formula */}
+                        {activeBranch.formula && (
+                          <div className="space-y-1.5 p-3.5 rounded-2xl bg-white/95 border border-amber-300 shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                4. Exact Textbook Formula
+                              </span>
+                              <button
+                                onClick={(e) => copyFormulaText(activeBranch.formula || '', activeBranch.id, e)}
+                                className="text-xs text-[#722F45] font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              >
+                                {copiedFormulaId === activeBranch.id ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span>Copy Formula</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            <div className="font-mono font-bold text-xs text-[#722F45] bg-amber-50 p-2.5 rounded-xl border border-amber-200 leading-relaxed break-words">
+                              {activeBranch.formula}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 5. 4–5 Important Points & Properties */}
+                        <div className="space-y-2 p-3.5 rounded-2xl bg-white/90 border border-black/5 shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            5. Important Points &amp; Properties ({activeBranch.keyPoints.length})
+                          </span>
+                          <div className="space-y-1.5">
+                            {activeBranch.keyPoints.map((pt, pIdx) => (
+                              <div key={pIdx} className="flex items-start gap-2 text-xs text-[#2D2226]">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                <span className="leading-snug">{pt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 6. Textbook-Based Solved Examples & Step-by-Step Explanation */}
+                        {activeBranch.textbookExamples && activeBranch.textbookExamples.length > 0 && (
+                          <div className="space-y-2 p-3.5 rounded-2xl bg-white/95 border border-purple-300 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1">
+                              <Bookmark className="w-3.5 h-3.5 text-purple-600" />
+                              6. Official Textbook Solved Example &amp; Step-by-Step Solution
+                            </span>
+                            {activeBranch.textbookExamples.map((ex, eIdx) => (
+                              <div key={eIdx} className="space-y-2 bg-purple-50/60 p-3 rounded-xl border border-purple-200">
+                                <span className="font-bold text-xs text-purple-950 block">{ex.problem}</span>
+                                <div className="space-y-1 pl-1">
+                                  {ex.solutionSteps.map((step, sIdx) => (
+                                    <div key={sIdx} className="text-xs text-[#2D2226] flex items-start gap-2">
+                                      <span className="font-bold text-purple-700 font-mono text-[10px] mt-0.5">{sIdx + 1}.</span>
+                                      <span className="leading-relaxed">{step}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 7. Common Mistakes & Pitfalls */}
+                        {activeBranch.commonMistakes && activeBranch.commonMistakes.length > 0 && (
+                          <div className="space-y-2 p-3.5 rounded-2xl bg-rose-50 border border-rose-300 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1">
+                              <Info className="w-3.5 h-3.5 text-rose-600" />
+                              7. Common Student Mistakes &amp; Pitfalls
+                            </span>
+                            <div className="space-y-1.5">
+                              {activeBranch.commonMistakes.map((m, mIdx) => (
+                                <div key={mIdx} className="text-xs text-rose-950 bg-white/80 p-2 rounded-xl border border-rose-200 flex items-start gap-2">
+                                  <span className="text-rose-600 font-black">⚠️</span>
+                                  <span className="leading-snug">{m}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 8. Practice Questions with Explained Answers */}
+                        {activeBranch.practiceQuestions && activeBranch.practiceQuestions.length > 0 && (
+                          <div className="space-y-2 p-3.5 rounded-2xl bg-white/95 border border-indigo-300 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1">
+                              <GraduationCap className="w-3.5 h-3.5 text-indigo-600" />
+                              8. Practice Question &amp; Explained Answer
+                            </span>
+                            {activeBranch.practiceQuestions.map((pq, qIdx) => (
+                              <div key={qIdx} className="space-y-2 bg-indigo-50/60 p-3 rounded-xl border border-indigo-200">
+                                <span className="font-bold text-xs text-indigo-950 block">{pq.question}</span>
+                                <div className="text-xs text-emerald-950 bg-emerald-100/80 p-2 rounded-lg font-bold border border-emerald-300 flex items-center gap-2">
+                                  <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                                  <span>Answer: {pq.answer}</span>
+                                </div>
+                                <div className="text-xs text-[#2D2226] bg-white p-2.5 rounded-lg border border-indigo-100 leading-relaxed font-medium">
+                                  <strong className="text-indigo-900 block mb-0.5">Step-by-Step Explanation:</strong>
+                                  {pq.explanation}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* 9. Real-Life Application */}
+                        {activeBranch.realLifeApp && (
+                          <div className="space-y-1 p-3.5 rounded-2xl bg-[#E8F5E9]/80 border border-emerald-300 text-emerald-950 shadow-2xs">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
+                              <Compass className="w-3.5 h-3.5 text-emerald-700" />
+                              9. Real-Life Application
+                            </span>
+                            <p className="text-xs leading-relaxed font-medium">
+                              {activeBranch.realLifeApp}
+                            </p>
+                          </div>
+                        )}
+
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center rounded-3xl bg-white border border-[#D5A3AE]/50 text-gray-500">
+                        Select a branch from the visual mind map to inspect its details.
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              )}
+
+              {/* ===================================================================== */}
+              {/* SUB-VIEW 2: FULL CHAPTER TREE EXPLORER (OUTLINE VIEW FOR MOBILE/PRINT)  */}
+              {/* ===================================================================== */}
+              {mindMapViewType === 'treeExplorer' && (
+                <div className="space-y-6">
+                  <div className="p-5 rounded-3xl bg-[#FAF4EE] border-2 border-[#D5A3AE]/60 space-y-2">
+                    <h3 className="font-extrabold text-base text-[#722F45]">
+                      Chapter {currentMindMap.chapterNumber}: {currentMindMap.chapterName} &bull; Full Concept Tree
+                    </h3>
+                    <p className="text-xs text-[#6C555C]">
+                      {currentMindMap.summary}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {currentMindMap.branches.map((b, idx) => {
+                      const theme = COLOR_THEMES[b.colorTheme];
+                      return (
+                        <div
+                          key={b.id}
+                          className={`p-6 rounded-3xl border-2 shadow-xs flex flex-col justify-between space-y-4 ${theme.lightBg} ${theme.nodeBorder}`}
+                        >
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between gap-2 border-b border-black/10 pb-3">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-8 h-8 rounded-xl text-white flex items-center justify-center bg-linear-to-r ${theme.gradient}`}>
+                                  {renderIconByName(b.iconName, "w-4 h-4")}
+                                </div>
+                                <h4 className="font-extrabold text-sm text-[#2D2226]">
+                                  {idx + 1}. {b.title}
+                                </h4>
+                              </div>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${theme.badgeBg}`}>
+                                Branch {idx + 1}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] block">
+                                Meaning:
+                              </span>
+                              <p className="text-xs text-[#2D2226] leading-relaxed">
+                                {b.whatDoesItMean}
+                              </p>
+                            </div>
+
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] block">
+                                Key Points:
+                              </span>
+                              <ul className="space-y-1 text-xs text-[#2D2226]">
+                                {b.keyPoints.map((pt, pIdx) => (
+                                  <li key={pIdx} className="flex items-start gap-1.5">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                    <span className="leading-snug">{pt}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {b.formula && (
+                              <div className="p-2.5 rounded-xl bg-white border border-black/10 text-xs font-mono font-bold text-[#722F45]">
+                                {b.formula}
+                              </div>
+                            )}
+
+                            {b.example && (
+                              <div className="p-2.5 rounded-xl bg-black/5 text-xs text-[#2D2226]">
+                                <strong className="text-[#722F45]">Example: </strong>{b.example}
+                              </div>
+                            )}
+
+                            {b.realLifeApp && (
+                              <div className="p-2.5 rounded-xl bg-emerald-100/70 text-xs text-emerald-950">
+                                <strong>Real-Life: </strong>{b.realLifeApp}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
         </>
       )}
 
       {/* ========================================================================= */}
-      {/* MODE 2: CHAPTER MIND MAPPING DISPLAY                                      */}
+      {/* DISPLAY MODE 2: STICKY NOTES DISPLAY                                       */}
       {/* ========================================================================= */}
-      {displayMode === 'mindMaps' && (
+      {displayMode === 'stickyNotes' && (
         <div className="space-y-6">
-          <div className="p-4 rounded-2xl bg-[#FFF9F2] border border-[#D5A3AE]/60 flex items-center gap-2">
-            <GitBranch className="w-5 h-5 text-[#722F45] shrink-0" />
-            <p className="text-xs text-[#5A454C] leading-relaxed">
-              <strong>Revision Mind Maps:</strong> Clear, textual node-flow maps showing how concepts connect across each chapter for fast examination revision.
-            </p>
+          <div className="p-4 rounded-2xl bg-white border border-[#D5A3AE]/60 flex items-center justify-between gap-3">
+            <h3 className="font-bold text-xs uppercase tracking-wider text-[#722F45]">
+              Digital Sticky Notes View ({filteredStickyNotes.length} Notes)
+            </h3>
+            <span className="text-[11px] text-[#6C555C]">
+              Showing notes for {selectedSubject}
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {subjectChapters.map(ch => {
-              const mindMap: ChapterMindMap = MATH_IA_MIND_MAPS[ch.num] || {
-                chapterNumber: ch.num,
-                chapterName: ch.name,
-                centralTheme: `${ch.name} Core Connections`,
-                nodes: [
-                  {
-                    title: `Chapter ${ch.num} Concepts`,
-                    description: `Core topics for ${ch.name}`,
-                    subitems: ['Essential Definitions', 'Key Formulas', 'Exam Applications']
-                  }
-                ],
-                quickSummary: `Review official ${ch.name} syllabus concepts for Intermediate 1st Year.`
-              };
-
-              return (
-                <div
-                  key={ch.num}
-                  className="p-6 rounded-3xl bg-[#FAF4EE] border-2 border-[#D5A3AE]/60 shadow-xs space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    {/* Chapter Header */}
-                    <div className="flex items-center justify-between gap-2 border-b border-[#D5A3AE]/40 pb-3">
-                      <span className="text-xs font-extrabold text-[#722F45] bg-[#D5A3AE]/30 px-3 py-1 rounded-full border border-[#D5A3AE]">
-                        Chapter {ch.num}
-                      </span>
-                      <span className="text-xs font-bold text-[#6C555C]">
-                        {ch.name}
-                      </span>
-                    </div>
-
-                    {/* Central Theme Badge */}
-                    <div className="p-3 rounded-2xl bg-[#722F45] text-white flex items-center gap-2 shadow-xs">
-                      <Network className="w-4 h-4 text-amber-300 shrink-0" />
-                      <span className="font-extrabold text-xs">{mindMap.centralTheme}</span>
-                    </div>
-
-                    {/* Node Branches */}
-                    <div className="space-y-3 pt-1">
-                      {mindMap.nodes.map((node, nIdx) => (
-                        <div key={nIdx} className="p-3.5 rounded-xl bg-white border border-[#D5A3AE]/50 space-y-1.5 shadow-2xs">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-[#722F45]">
-                            <GitBranch className="w-3.5 h-3.5 text-[#8C4057]" />
-                            <span>{node.title}</span>
-                          </div>
-                          <p className="text-[11px] text-[#6C555C] italic">{node.description}</p>
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {node.subitems.map((sub, sIdx) => (
-                              <span
-                                key={sIdx}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#FAF4EE] border border-[#D5A3AE]/40 text-[#2D2226]"
-                              >
-                                &bull; {sub}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Bottom Quick Summary */}
-                  <div className="p-3.5 rounded-xl bg-[#DFCEBE]/40 border border-[#D5A3AE]/50 text-xs text-[#2D2226] space-y-1">
-                    <strong className="text-[#722F45] font-bold block">Quick Revision Summary:</strong>
-                    <p className="leading-relaxed text-[11px]">{mindMap.quickSummary}</p>
-                  </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredStickyNotes.map((note) => (
+              <div
+                key={note.id}
+                className="p-5 rounded-2xl border-2 border-amber-200 bg-[#FEF9C3] shadow-md space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-amber-300 text-amber-950 px-2 py-0.5 rounded">
+                    Ch {note.chapterNumber}: {note.chapterName}
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-900">{note.subject}</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* AI Learning Support Socratic Modal */}
-      {aiTutorNote && (
-        <div 
-          onClick={() => setAiTutorNote(null)}
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="max-w-2xl w-full bg-[#FAF4EE] rounded-3xl border-2 border-[#D5A3AE] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
-          >
-            {/* Modal Header */}
-            <div className="p-5 border-b border-[#D5A3AE]/40 bg-white/60 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#722F45] text-white flex items-center justify-center shadow-xs">
-                  <Bot className="w-5 h-5 text-amber-300" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#722F45] bg-[#D5A3AE]/30 px-2 py-0.5 rounded">
-                      Socratic AI Tutor
-                    </span>
-                    <span className="text-xs text-[#6C555C] font-semibold">
-                      {aiTutorNote.subject} &bull; Ch {aiTutorNote.chapterNumber}
-                    </span>
+                <h4 className="font-extrabold text-sm text-[#2D2226]">{note.originalConceptName}</h4>
+                <p className="text-xs text-gray-800 leading-relaxed">{note.whatIsIt}</p>
+
+                {note.formula && (
+                  <div className="p-2.5 rounded-xl bg-white text-xs font-mono font-bold text-[#722F45] border border-amber-300">
+                    {note.formula}
                   </div>
-                  <h3 className="font-extrabold text-sm sm:text-base text-[#2D2226] leading-tight mt-0.5">
-                    {aiTutorNote.originalConceptName}
-                  </h3>
-                </div>
+                )}
+
+                {note.example && (
+                  <div className="p-2 rounded-lg bg-black/5 text-[11px] text-gray-800">
+                    <strong>Example: </strong>{note.example}
+                  </div>
+                )}
               </div>
-
-              <button
-                onClick={() => setAiTutorNote(null)}
-                className="p-1.5 rounded-xl bg-white text-gray-500 hover:text-gray-800 border border-[#D5A3AE]/40 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Quick Socratic Prompts */}
-            <div className="p-3 bg-[#FAF4EE] border-b border-[#D5A3AE]/30 flex items-center gap-1.5 overflow-x-auto scrollbar-thin">
-              <span className="text-[11px] font-bold text-[#722F45] shrink-0 mr-1 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-600" />
-                Quick Prompts:
-              </span>
-              <button
-                onClick={() => handleSendAiQuestion('Can you explain this concept in simple English suitable for a beginner?')}
-                disabled={aiLoading}
-                className="px-2.5 py-1 rounded-lg bg-white border border-[#D5A3AE]/50 text-[11px] font-bold text-[#722F45] hover:bg-[#D5A3AE]/20 shrink-0 cursor-pointer disabled:opacity-50"
-              >
-                💡 Explain simply
-              </button>
-              <button
-                onClick={() => handleSendAiQuestion('Give me a step-by-step problem-solving hint without giving away the full answer immediately.')}
-                disabled={aiLoading}
-                className="px-2.5 py-1 rounded-lg bg-white border border-[#D5A3AE]/50 text-[11px] font-bold text-[#722F45] hover:bg-[#D5A3AE]/20 shrink-0 cursor-pointer disabled:opacity-50"
-              >
-                🔍 Give me a hint
-              </button>
-              <button
-                onClick={() => handleSendAiQuestion('Give me one short practice question on this concept to test my understanding.')}
-                disabled={aiLoading}
-                className="px-2.5 py-1 rounded-lg bg-white border border-[#D5A3AE]/50 text-[11px] font-bold text-[#722F45] hover:bg-[#D5A3AE]/20 shrink-0 cursor-pointer disabled:opacity-50"
-              >
-                📝 Test me with a question
-              </button>
-            </div>
-
-            {/* Chat Conversation History */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-3.5 text-xs">
-              {aiChatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {msg.sender === 'ai' && (
-                    <div className="w-7 h-7 rounded-lg bg-[#722F45] text-white flex items-center justify-center shrink-0 text-xs">
-                      <Bot className="w-4 h-4 text-amber-300" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[85%] p-3.5 rounded-2xl leading-relaxed whitespace-pre-wrap ${
-                      msg.sender === 'user'
-                        ? 'bg-[#722F45] text-white rounded-tr-xs shadow-xs'
-                        : 'bg-white text-[#2D2226] border border-[#D5A3AE]/40 rounded-tl-xs shadow-xs'
-                    }`}
-                  >
-                    {msg.text}
-                    <div className={`text-[9px] mt-1 text-right ${msg.sender === 'user' ? 'text-white/60' : 'text-[#6C555C]'}`}>
-                      {msg.timestamp}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {aiLoading && (
-                <div className="flex gap-2.5 justify-start">
-                  <div className="w-7 h-7 rounded-lg bg-[#722F45] text-white flex items-center justify-center shrink-0 text-xs">
-                    <Bot className="w-4 h-4 text-amber-300 animate-pulse" />
-                  </div>
-                  <div className="p-3.5 rounded-2xl bg-white text-[#6C555C] border border-[#D5A3AE]/40 rounded-tl-xs flex items-center gap-2">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#722F45]" />
-                    <span>AI Tutor is thinking Socratic guidance...</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Input Bar */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendAiQuestion();
-              }}
-              className="p-3 bg-white border-t border-[#D5A3AE]/40 flex items-center gap-2"
-            >
-              <input
-                type="text"
-                placeholder={`Ask a question about ${aiTutorNote.originalConceptName}...`}
-                value={aiQuestionInput}
-                onChange={(e) => setAiQuestionInput(e.target.value)}
-                disabled={aiLoading}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#FAF4EE] border border-[#D5A3AE]/50 text-xs text-[#2D2226] focus:outline-none focus:ring-1 focus:ring-[#722F45] placeholder:text-[#6C555C]"
-              />
-              <button
-                type="submit"
-                disabled={!aiQuestionInput.trim() || aiLoading}
-                className="px-4 py-2.5 rounded-xl bg-[#722F45] hover:bg-[#5C2436] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Ask</span>
-                <Send className="w-3.5 h-3.5" />
-              </button>
-            </form>
-
+            ))}
           </div>
         </div>
       )}

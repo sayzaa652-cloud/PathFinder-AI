@@ -1,20 +1,26 @@
 import React, { useState, useMemo } from 'react';
 import { 
   GraduationCap, BookOpen, Wrench, Award, Briefcase, Compass,
-  ChevronRight, Search, CheckCircle2, ArrowRight, PlayCircle, Filter
+  ChevronRight, Search, CheckCircle2, ArrowRight, PlayCircle, Filter,
+  Sparkles, Copy, Check, Lightbulb, ExternalLink, Info, BookMarked, Layers
 } from 'lucide-react';
 import { EDUCATION_LEVELS, ALL_BOARDS, BSC_STUDY_TYPES } from '../data/educationData';
-import { EducationLevelId, EducationCourse, EducationBranchOrGroup, EducationSpecialization } from '../types';
+import { EducationLevelId, EducationCourse, EducationBranchOrGroup, EducationSpecialization, StudentProfile } from '../types';
+import { OFFICIAL_TGBIE_MATH_NOTES, MathStickyNote } from '../data/mathStickyNotesData';
+import { MpcCoreLearningHub } from './MpcCoreLearningHub';
 
 interface EducationHierarchySelectorProps {
   onStartAssessment: (educationLevel: string, courseOrGroup: string, specialization: string, boardName?: string, customSubjects?: string[]) => void;
   onSetAsProfile?: (specialization: string, group: string, level: string, studyType?: string) => void;
+  profile?: StudentProfile | null;
 }
 
 export const EducationHierarchySelector: React.FC<EducationHierarchySelectorProps> = ({
   onStartAssessment,
-  onSetAsProfile
+  onSetAsProfile,
+  profile
 }) => {
+  const [activeSectionView, setActiveSectionView] = useState<'mpcHub' | 'catalog'>('mpcHub');
   const [selectedLevelId, setSelectedLevelId] = useState<EducationLevelId>('intermediate');
   const [selectedQualificationId, setSelectedQualificationId] = useState<string>('');
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
@@ -26,6 +32,29 @@ export const EducationHierarchySelector: React.FC<EducationHierarchySelectorProp
   const [selectedStudyType, setSelectedStudyType] = useState<string>('B.Sc. Honours');
   const [customSubjectsInput, setCustomSubjectsInput] = useState<string>('Mathematics, Economics, Computer Science');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedConceptSubject, setSelectedConceptSubject] = useState<'Mathematics IA' | 'Mathematics IB' | 'Physics' | 'Chemistry'>('Mathematics IA');
+  const [copiedFormulaId, setCopiedFormulaId] = useState<string | null>(null);
+
+  const activeConceptNotes = useMemo(() => {
+    return OFFICIAL_TGBIE_MATH_NOTES.filter((n) => n.subject === selectedConceptSubject);
+  }, [selectedConceptSubject]);
+
+  const copyFormulaText = (formula: string, id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    navigator.clipboard?.writeText(formula);
+    setCopiedFormulaId(id);
+    setTimeout(() => setCopiedFormulaId(null), 2000);
+  };
+
+  const stickyColorStyles: Record<string, { bg: string; border: string; badge: string; text: string }> = {
+    yellow: { bg: 'bg-[#FEF9C3]', border: 'border-[#FDE047]', badge: 'bg-[#FACC15]/40 text-[#713F12]', text: 'text-[#854D0E]' },
+    mint: { bg: 'bg-[#DCFCE7]', border: 'border-[#86EFAC]', badge: 'bg-[#86EFAC]/40 text-[#14532D]', text: 'text-[#166534]' },
+    blue: { bg: 'bg-[#E0F2FE]', border: 'border-[#7DD3FC]', badge: 'bg-[#7DD3FC]/40 text-[#0C4A6E]', text: 'text-[#075985]' },
+    lavender: { bg: 'bg-[#F3E8FF]', border: 'border-[#D8B4FE]', badge: 'bg-[#D8B4FE]/40 text-[#581C87]', text: 'text-[#6B21A8]' },
+    peach: { bg: 'bg-[#FFE4E6]', border: 'border-[#FDA4AF]', badge: 'bg-[#FDA4AF]/40 text-[#881337]', text: 'text-[#9F1239]' },
+    lime: { bg: 'bg-[#ECFCCB]', border: 'border-[#BEF264]', badge: 'bg-[#BEF264]/40 text-[#365314]', text: 'text-[#3F6212]' },
+    amber: { bg: 'bg-[#FEF3C7]', border: 'border-[#FCD34D]', badge: 'bg-[#FCD34D]/40 text-[#78350F]', text: 'text-[#92400E]' }
+  };
 
   // Current Level
   const currentLevel = useMemo(() => {
@@ -133,20 +162,54 @@ export const EducationHierarchySelector: React.FC<EducationHierarchySelectorProp
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       
-      {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-[#D5A3AE]/50">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D5A3AE]/25 border border-[#D5A3AE] text-xs font-semibold text-[#722F45] mb-2 shadow-xs">
-            <BookOpen className="w-3.5 h-3.5 text-[#8C4057]" />
-            <span>Course Catalog</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-[#722F45] tracking-tight font-serif-accent">
-            Course Explorer &amp; Subject Selector
-          </h1>
-          <p className="text-sm text-[#6C555C] mt-1 max-w-2xl">
-            Browse every course, stream, and subject. Pick your subject to start a quick 20-question practice test or save it to your profile.
-          </p>
-        </div>
+      {/* Top Section View Switcher: MPC Learning Hub vs All Courses Catalog */}
+      <div className="flex items-center p-1.5 rounded-2xl bg-[#FAF4EE] border-2 border-[#D5A3AE] shadow-xs">
+        <button
+          onClick={() => setActiveSectionView('mpcHub')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeSectionView === 'mpcHub'
+              ? 'bg-[#722F45] text-white shadow-md'
+              : 'text-[#2D2226] hover:bg-[#D5A3AE]/20'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-amber-300" />
+          <span>MPC Core Learning Hub (Maths 1A, 1B, Physics, Chemistry)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSectionView('catalog')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+            activeSectionView === 'catalog'
+              ? 'bg-[#722F45] text-white shadow-md'
+              : 'text-[#2D2226] hover:bg-[#D5A3AE]/20'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>All Courses &amp; Degree Explorer</span>
+        </button>
+      </div>
+
+      {activeSectionView === 'mpcHub' ? (
+        <MpcCoreLearningHub
+          onLaunchAssessment={(spec) => onStartAssessment('Intermediate', 'MPC Core', spec)}
+          profile={profile}
+        />
+      ) : (
+        <>
+          {/* Top Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-[#D5A3AE]/50">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#D5A3AE]/25 border border-[#D5A3AE] text-xs font-semibold text-[#722F45] mb-2 shadow-xs">
+                <BookOpen className="w-3.5 h-3.5 text-[#8C4057]" />
+                <span>Course Catalog</span>
+              </div>
+              <h1 className="text-3xl font-extrabold text-[#722F45] tracking-tight font-serif-accent">
+                Course Explorer &amp; Subject Selector
+              </h1>
+              <p className="text-sm text-[#6C555C] mt-1 max-w-2xl">
+                Browse every course, stream, and subject. Pick your subject to start a quick 20-question practice test or save it to your profile.
+              </p>
+            </div>
 
         {/* Global Live Search Bar */}
         <div className="relative w-full md:w-80">
@@ -636,6 +699,129 @@ export const EducationHierarchySelector: React.FC<EducationHierarchySelectorProp
                     </div>
                   </div>
                 )}
+                {/* Learn Concepts Section (TGBIE 2026–27) */}
+                <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-[#FAF4EE] border border-[#D5A3AE]/60 space-y-4 shadow-2xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#D5A3AE]/40 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#8C4057]" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#722F45]">
+                        Learn Concepts (TGBIE 2026–27 Syllabus)
+                      </h4>
+                    </div>
+                    <span className="text-[11px] text-[#6C555C]">
+                      Textbook-based digital sticky notes &amp; core formulas
+                    </span>
+                  </div>
+
+                  {/* 1. Subject Cards (Mathematics IA, Mathematics IB, Physics, Chemistry) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {(['Mathematics IA', 'Mathematics IB', 'Physics', 'Chemistry'] as const).map((subj) => {
+                      const isSelected = selectedConceptSubject === subj;
+                      const count = OFFICIAL_TGBIE_MATH_NOTES.filter(n => n.subject === subj).length;
+                      return (
+                        <button
+                          key={subj}
+                          type="button"
+                          onClick={() => setSelectedConceptSubject(subj)}
+                          className={`p-2.5 rounded-xl text-left border text-xs font-bold transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-[#722F45] text-white border-[#722F45] shadow-xs ring-1 ring-[#722F45]'
+                              : 'bg-white text-[#2D2226] border-[#D5A3AE]/50 hover:bg-[#D5A3AE]/20'
+                          }`}
+                        >
+                          <span>{subj}</span>
+                          <span className={`text-[10px] mt-1 font-semibold ${isSelected ? 'text-white/80' : 'text-[#6C555C]'}`}>
+                            {count > 0 ? `${count} Concepts` : 'TGBIE Syllabus'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 2 & 3. Display Textbook-Based Concept Sticky Notes or Fallback Message */}
+                  {activeConceptNotes.length > 0 ? (
+                    <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                      {activeConceptNotes.map((note) => {
+                        const theme = stickyColorStyles[note.stickyColor] || stickyColorStyles.yellow;
+                        return (
+                          <div
+                            key={note.id}
+                            className={`p-4 rounded-xl border-2 transition-all shadow-2xs space-y-2 ${theme.bg} ${theme.border}`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded ${theme.badge}`}>
+                                Ch {note.chapterNumber}: {note.chapterName}
+                              </span>
+                              <span className="text-[10px] font-bold text-[#722F45]">
+                                {note.subject}
+                              </span>
+                            </div>
+
+                            {/* Original Concept Name */}
+                            <h5 className="font-bold text-xs text-[#2D2226] leading-snug">
+                              {note.originalConceptName}
+                            </h5>
+
+                            {/* Simple English Meaning */}
+                            <div className="space-y-0.5">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-[#722F45] block">
+                                Simple English Meaning:
+                              </span>
+                              <p className="text-[11px] text-[#3D2C33] leading-relaxed">
+                                {note.whatIsIt}
+                              </p>
+                            </div>
+
+                            {/* Important Formula */}
+                            {note.formula && (
+                              <div className="p-2.5 rounded-lg bg-white/90 border border-black/10 flex items-center justify-between gap-2">
+                                <span className="font-mono font-bold text-[11px] text-[#722F45] break-all">
+                                  {note.formula}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => copyFormulaText(note.formula || '', note.id, e)}
+                                  title="Copy Formula"
+                                  className="text-gray-400 hover:text-[#722F45] cursor-pointer p-1 shrink-0"
+                                >
+                                  {copiedFormulaId === note.id ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Short Example */}
+                            {note.example && (
+                              <div className="p-2 rounded-lg bg-black/5 text-[10px] text-[#2D2226]">
+                                <strong className="text-[#722F45]">Example: </strong>{note.example}
+                              </div>
+                            )}
+
+                            {/* Remember Tip */}
+                            <div className="p-2 rounded-lg bg-amber-100/70 text-[10px] text-amber-950 flex items-start gap-1">
+                              <Lightbulb className="w-3 h-3 text-amber-700 shrink-0 mt-0.5" />
+                              <span><strong>Remember:</strong> {note.rememberTip}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-5 rounded-xl bg-white border border-[#D5A3AE]/50 text-center space-y-2">
+                      <Info className="w-5 h-5 text-[#8C4057] mx-auto opacity-70" />
+                      <h5 className="font-bold text-xs text-[#722F45]">
+                        Concept Notes for {selectedConceptSubject} Coming Soon
+                      </h5>
+                      <p className="text-[11px] text-[#6C555C] max-w-md mx-auto">
+                        Verified textbook concept notes for <strong>{selectedConceptSubject}</strong> under the official TGBIE 2026–27 syllabus will be available soon in Phase 2. PathFinder strictly presents verified board syllabus content without displaying unverified or unrelated notes.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
               </div>
 
               {/* Assessment Launcher Footer */}
@@ -685,6 +871,8 @@ export const EducationHierarchySelector: React.FC<EducationHierarchySelectorProp
           </div>
 
         </div>
+      )}
+        </>
       )}
 
     </div>

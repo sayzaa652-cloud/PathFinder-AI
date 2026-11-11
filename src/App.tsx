@@ -33,6 +33,7 @@ import { CareerGuidanceSection } from './components/CareerGuidanceSection';
 import { StudyHubSection } from './components/StudyHubSection';
 import { ComprehensiveSkillAssessment } from './components/ComprehensiveSkillAssessment';
 import { AIChatView } from './components/AIChatView';
+import { InteractiveGamesSection } from './components/InteractiveGamesSection';
 
 import { Assessment, StudentProfile, AssessmentResult, CareerInterestResult } from './types';
 import { storageService } from './services/storageService';
@@ -260,6 +261,7 @@ export default function App() {
 
                 <EducationHierarchySelector
                   onStartAssessment={handleLaunchAssessment}
+                  profile={profile}
                   onSetAsProfile={(spec, group, level) => {
                     if (profile) {
                       const updated = { ...profile, specialization: spec, streamOrGroup: group, educationLevel: level };
@@ -285,6 +287,7 @@ export default function App() {
             {activeTab === 'explorer' && (
               <EducationHierarchySelector
                 onStartAssessment={handleLaunchAssessment}
+                profile={profile}
                 onSetAsProfile={(spec, group, level, studyType) => {
                   if (profile) {
                     const updated: StudentProfile = {
@@ -301,6 +304,10 @@ export default function App() {
                   }
                 }}
               />
+            )}
+
+            {activeTab === 'games' && (
+              <InteractiveGamesSection />
             )}
 
             {activeTab === 'assessments' && (
